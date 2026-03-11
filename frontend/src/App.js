@@ -1,14 +1,14 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { AuthContext } from './contexts/AuthContext';
-import { fetchNotebook, fetchRepositories, fetchUser, handleSharedDocument } from './utils/api';
+import { fetchNotebook, fetchFile, fetchRepositories, fetchUser, handleSharedDocument } from './utils/api';
 import { tiptapDocToIpynb } from './utils/notebookConversionUtils';
-import { saveToGitHub } from './utils/savetoGitHub';
+import { tiptapDocToQmd } from './utils/quartoConversionUtils';
+import { saveToGitHub, saveQmdToGitHub } from './utils/savetoGitHub';
 import { getCurrentTime, isWithin30Minutes } from './utils/timeUtils';
 import './styles/main.css';
 import 'katex/dist/katex.min.css';
 import EditorWrapper from './components/Editor/EditorWrapper';
 import WarningBanner from './components/WarningBanner';
-import LoginButton from './components/Auth/LoginButton';
 import { GitHubReferenceManager } from './utils/GitHubReferenceManager';
 import { useParams, useLocation } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
@@ -41,6 +41,7 @@ function App() {
   const [repositories, setRepositories] = useState([]);
   const [selectedRepo, setSelectedRepo] = useState(null);
   const [ipynb, setIpynb] = useState(null);
+  const [qmdContent, setQmdContent] = useState(null);
   const [referenceManager, setReferenceManager] = useState(null);
   const [references, setReferences] = useState([]); // Add references state
   const [saveMessage, setSaveMessage] = useState('');
@@ -48,6 +49,7 @@ function App() {
   const [activeEditor, setActiveEditor] = useState(null);
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
   const [commentMarkKey, setCommentMarkKey] = useState(0);
+  const isLoadingFile = useRef(false);
 
   useEffect(() => {
     const loadRepositories = async () => {
@@ -134,47 +136,29 @@ function App() {
     return () => clearInterval(intervalId);
   }, [ipynb, isAuthenticated, user, filePath, selectedRepo]);
 
-  // Handle shared document URLs
+  // Handle collaboration invitations on shared document URLs
   useEffect(() => {
     const handleSharedDocumentAccess = async () => {
       if (owner && repo && isAuthenticated) {
         try {
-          console.log('Handling shared document access:', { owner, repo });
-          // Get the file path from the URL (everything after /document/owner/repo/)
-          const path = location.pathname.split(`/document/${owner}/${repo}/`)[1] || '';
-          console.log('File path from URL:', path);
-          
-          const result = await handleSharedDocument(owner, repo, path);
-          
+          const result = await handleSharedDocument(owner, repo, '');
           if (result.hasInvitation) {
-            // Show invitation UI
             const confirmed = window.confirm(`Accept invitation to collaborate on ${owner}/${repo}?`);
             if (confirmed) {
+              const path = location.pathname.split(`/document/${owner}/${repo}/`)[1] || '';
               const notebook = await result.accept();
               setIpynb(notebook);
               setSelectedRepo({ fullName: `${owner}/${repo}`, owner: { login: owner }, name: repo });
-              if (path) {
-                setFilePath(path);
-              }
-            }
-          } else if (result.document) {
-            // Document is already accessible
-            setIpynb(result.document);
-            setSelectedRepo({ fullName: `${owner}/${repo}`, owner: { login: owner }, name: repo });
-            if (path) {
-              setFilePath(path);
+              if (path) setFilePath(path);
             }
           }
         } catch (error) {
           console.error('Error handling shared document:', error);
-          // Show error UI
-          setSaveMessage('Error accessing shared document: ' + (error.response?.data?.error || error.message));
         }
       }
     };
-    
     handleSharedDocumentAccess();
-  }, [owner, repo, isAuthenticated, location.pathname]);
+  }, [owner, repo, isAuthenticated]);
 
   const checkLastEditor = (notebook) => {
     if (!notebook?.metadata?.active_editors) return null;
@@ -188,7 +172,7 @@ function App() {
   };
 
   const handleLoadFile = async () => {
-    console.log("handleLoadFile called"); // ADDED
+    if (isLoadingFile.current) return;
     if (!filePath) {
       setSaveMessage('Please enter a file path');
       return;
@@ -205,70 +189,58 @@ function App() {
       setSaveMessage('Invalid repository format');
       return;
     }
-    if (!user) {
-      setSaveMessage('User data not loaded yet');
-      return;
-    }
 
+    isLoadingFile.current = true;
     try {
-      console.log('Loading notebook with:', {
-        filePath,
-        repo: selectedRepo.fullName,
-        owner: selectedRepo.owner.login
-      });
-
-      const notebook = await fetchNotebook(filePath, selectedRepo.fullName);
-      if (!notebook.metadata) {
-        notebook.metadata = {};
-      }
-      if (!notebook.metadata.active_editors) {
-        notebook.metadata.active_editors = [];
-      }
-
-      notebook.metadata.active_editors = notebook.metadata.active_editors.filter(
-        editor => isWithin30Minutes(editor.timestamp)
-      );
-
-      const existingEditorIndex = notebook.metadata.active_editors.findIndex(
-        editor => editor.name === (user.name || user.login)
-      );
-
-      if (existingEditorIndex === -1) {
-        notebook.metadata.active_editors.push({
-          name: user.name || user.login,
-          avatar_url: user.avatar_url,
-          timestamp: getCurrentTime()
-        });
+      if (filePath.endsWith('.qmd')) {
+        // --- QMD path: no user required ---
+        const result = await fetchFile(filePath, selectedRepo.fullName);
+        setQmdContent(result.content);
+        setIpynb(null);
       } else {
-        notebook.metadata.active_editors[existingEditorIndex].timestamp = getCurrentTime();
+        // --- ipynb path ---
+        const notebook = await fetchNotebook(filePath, selectedRepo.fullName);
+        if (!notebook.metadata) {
+          notebook.metadata = {};
+        }
+        if (!notebook.metadata.active_editors) {
+          notebook.metadata.active_editors = [];
+        }
+
+        notebook.metadata.active_editors = notebook.metadata.active_editors.filter(
+          editor => isWithin30Minutes(editor.timestamp)
+        );
+
+        // Only track active editors when user data is available
+        if (user) {
+          const existingEditorIndex = notebook.metadata.active_editors.findIndex(
+            editor => editor.name === (user.name || user.login)
+          );
+          if (existingEditorIndex === -1) {
+            notebook.metadata.active_editors.push({
+              name: user.name || user.login,
+              avatar_url: user.avatar_url,
+              timestamp: getCurrentTime()
+            });
+          } else {
+            notebook.metadata.active_editors[existingEditorIndex].timestamp = getCurrentTime();
+          }
+          await saveToGitHub(notebook, filePath, selectedRepo, user);
+        }
+
+        setIpynb(notebook);
+        setQmdContent(null);
       }
-
-      await saveToGitHub(notebook, filePath, selectedRepo, user);
-
-      setIpynb(notebook);
 
       const manager = new GitHubReferenceManager(
-        null,  // token is not needed since we're using session auth
+        null,
         selectedRepo.fullName,
         filePath,
         selectedRepo.owner.login
       );
-      console.log("Initializing reference manager..."); // ADDED
       await manager.init();
-      console.log("Reference manager initialized:", manager); // ADDED
       setReferenceManager(manager);
-      console.log("Reference manager state updated:", manager); // ADDED
-      
-      // Update references state when reference manager changes
       const refs = manager.getReferences();
-      console.log("Setting references:", refs);
-      refs.forEach((ref, index) => {
-        console.log(`Reference ${index} from manager:`, {
-          citationKey: ref.citationKey,
-          entryType: ref.entryType,
-          entryTags: ref.entryTags
-        });
-      });
       setReferences(refs);
 
       setSaveMessage('File loaded successfully');
@@ -281,14 +253,12 @@ function App() {
         setSaveMessage(`Error loading file: ${error.message}`);
       }
       setTimeout(() => setSaveMessage(''), 3000);
+    } finally {
+      isLoadingFile.current = false;
     }
   };
 
   const onSaveFile = async (editor) => {
-    if (!ipynb) {
-      console.warn('No ipynb file available.');
-      return;
-    }
     if (!editor) {
       console.warn('No editor instance available.');
       return;
@@ -303,10 +273,17 @@ function App() {
     }
 
     try {
-      const newIpynb = tiptapDocToIpynb(editor, ipynb);
-      console.log('Save result:', newIpynb);
-      const result = await saveToGitHub(newIpynb, filePath, selectedRepo, user);
-      console.log('Save result:', result);
+      if (filePath.endsWith('.qmd')) {
+        const qmdString = tiptapDocToQmd(editor);
+        await saveQmdToGitHub(qmdString, filePath, selectedRepo);
+      } else {
+        if (!ipynb) {
+          console.warn('No ipynb file available.');
+          return;
+        }
+        const newIpynb = tiptapDocToIpynb(editor, ipynb);
+        await saveToGitHub(newIpynb, filePath, selectedRepo, user);
+      }
 
       setSaveMessage('File updated successfully');
       setTimeout(() => setSaveMessage(''), 3000);
@@ -341,52 +318,22 @@ function App() {
     <div className="App">
       <Analytics />
       <WarningBanner editors={ipynb?.metadata?.active_editors} currentUser={user} />
-      {!isAuthenticated ? (
-        <div className="login-container">
-
-          {process.env.REACT_APP_BETA_KEY === 'yes' && !betaCodeVerified ? (
-              <form className="beta-test-form" onSubmit={(e) => e.preventDefault()}>
-                <p>Welcome Resolve is in preview testing, for a beta code reach out to Michel Nivard (find me on bluesky or GitHub). Please enter the beta test code to continue</p>
-                <input
-                  type="text"
-                  className="beta-test-input"
-                  value={betaCode}
-                  onChange={(e) => setBetaCode(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Enter beta test code"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="beta-confirm-button"
-                  onClick={verifyBetaCode}
-                >
-                  Confirm
-                </button>
-              </form>
-            ) : (
-              <LoginButton />
-            )}         
-        </div>
-      ) : (
-        <>
-          <EditorWrapper
-            referenceManager={referenceManager}
-            filePath={filePath}
-            setFilePath={setFilePath}
-            ipynb={ipynb}
-            setIpynb={setIpynb}
-            handleLoadFile={handleLoadFile}
-            handleSaveFile={onSaveFile}
-            saveMessage={saveMessage}
-            repositories={repositories}
-            selectedRepo={selectedRepo}
-            setSelectedRepo={setSelectedRepo}
-            extensions={editorExtensions}
-            references={references} // Add references prop
-          />
-        </>
-      )}
+      <EditorWrapper
+        referenceManager={referenceManager}
+        filePath={filePath}
+        setFilePath={setFilePath}
+        ipynb={ipynb}
+        setIpynb={setIpynb}
+        qmdContent={qmdContent}
+        handleLoadFile={handleLoadFile}
+        handleSaveFile={onSaveFile}
+        saveMessage={saveMessage}
+        repositories={repositories}
+        selectedRepo={selectedRepo}
+        setSelectedRepo={setSelectedRepo}
+        extensions={editorExtensions}
+        references={references}
+      />
     </div>
   );
 }

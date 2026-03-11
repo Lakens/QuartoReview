@@ -1,6 +1,13 @@
 import { getCurrentTime, get30MinutesAgo, isWithin30Minutes } from './timeUtils';
 import { saveNotebook } from './api';
 
+export async function saveQmdToGitHub(qmdString, filePath, selectedRepo) {
+  if (!selectedRepo?.fullName) {
+    throw new Error('No repository selected');
+  }
+  return saveNotebook(qmdString, filePath, selectedRepo.fullName);
+}
+
 export async function saveToGitHub(newIpynb, filePath, selectedRepo, user) {
     if (!selectedRepo) {
       throw new Error('No repository selected');

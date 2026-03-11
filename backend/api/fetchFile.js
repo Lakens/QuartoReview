@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     const { path: filePath, repository } = req.query;
     
     // Use the token from the session
-    const token = req.session.githubToken;
+    const token = req.session.githubToken || process.env.GITHUB_TOKEN;
     if (!token) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -40,8 +40,13 @@ router.get('/', async (req, res) => {
 
     // Decode content from base64
     const content = Buffer.from(response.data.content, 'base64').toString('utf8');
-    let ipynb;
 
+    // Handle .qmd files differently — return raw text
+    if (sanitizedPath.endsWith('.qmd')) {
+      return res.json({ qmdContent: content, fileType: 'qmd' });
+    }
+
+    let ipynb;
     try {
       ipynb = JSON.parse(content);
     } catch (error) {
@@ -49,7 +54,7 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid notebook format' });
     }
 
-    res.json({ ipynb });
+    res.json({ ipynb, fileType: 'ipynb' });
   } catch (error) {
     console.error('Error fetching file:', error);
     if (error.status === 404) {

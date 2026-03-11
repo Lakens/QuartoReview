@@ -1,1 +1,8 @@
 backend/.bootscript.rtf
+.env
+backend/.env
+frontend/.env
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+backend/sessions/

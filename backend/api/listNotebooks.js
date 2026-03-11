@@ -11,7 +11,7 @@ async function listNotebooks(req, res) {
       return res.status(400).json({ error: 'Repository parameter is required' });
     }
 
-    const token = req.session.githubToken;
+    const token = req.session.githubToken || process.env.GITHUB_TOKEN;
 
     if (!token) {
       console.error('No token found in session');
@@ -40,9 +40,9 @@ async function listNotebooks(req, res) {
       recursive: 'true'
     });
 
-    // Filter for .ipynb files
+    // Filter for .ipynb and .qmd files
     const notebooks = treeData.tree
-      .filter(item => item.type === 'blob' && item.path.endsWith('.ipynb'))
+      .filter(item => item.type === 'blob' && (item.path.endsWith('.ipynb') || item.path.endsWith('.qmd')))
       .map(item => item.path);
 
     res.json({ notebooks });

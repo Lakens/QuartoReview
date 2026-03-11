@@ -32,8 +32,10 @@ const collaborationRoute = await import('./api/collaboration.js');
 
 const app = express();
 
-// Trust proxy - needed for secure cookies behind nginx
-app.set('trust proxy', 1);
+// Trust proxy - needed for secure cookies behind nginx/Caddy in production only
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // CORS configuration based on environment
 const corsOptions = {
@@ -77,18 +79,19 @@ app.use(session({
     retries: 0,
     reapInterval: 3600, // 1 hour in seconds
     logFn: () => {}, // Disable verbose logging
-    secret: process.env.SESSION_SECRET // Encrypt session files
+    // Only encrypt session files in production to avoid decryption issues in dev
+    ...(process.env.NODE_ENV === 'production' && { secret: process.env.SESSION_SECRET })
   }),
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   rolling: true, // Forces cookie set on every response
   cookie: {
-    secure: true, // Always use secure in production
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     maxAge: 12 * 60 * 60 * 1000, // 12 hours
-    sameSite: 'none', // Required for cross-domain
-    domain: '.resolve.pub' // Allow sharing between subdomains
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    domain: process.env.NODE_ENV === 'production' ? '.resolve.pub' : undefined
   },
   name: 'sessionId'
 }));
@@ -123,10 +126,15 @@ app.use((req, res, next) => {
   }
 });
 
-// Debug middleware for session
-app.use((req, res, next) => {
-  next();
-});
+// In development, auto-inject the PAT from .env so login is not required
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    if (!req.session.githubToken && process.env.GITHUB_TOKEN) {
+      req.session.githubToken = process.env.GITHUB_TOKEN;
+    }
+    next();
+  });
+}
 
 // Apply rate limiting to all routes
 app.use(createRateLimiter());
@@ -144,7 +152,9 @@ const protectedRoutes = [
 
 // Middleware to check if user is authenticated
 const requireAuth = (req, res, next) => {
-  if (req.session && req.session.githubToken) {
+  const hasSession = req.session && req.session.githubToken;
+  const hasEnvToken = process.env.NODE_ENV !== 'production' && !!process.env.GITHUB_TOKEN;
+  if (hasSession || hasEnvToken) {
     next();
   } else {
     res.status(401).json({ error: 'Unauthorized' });

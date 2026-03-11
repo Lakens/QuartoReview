@@ -9,7 +9,7 @@ export const createRateLimiter = (windowMs = 15 * 60 * 1000, max = 400) => {
         message: 'Too many requests from this IP, please try again later.',
         standardHeaders: true,
         legacyHeaders: false,
-        trustProxy: true // Add this to fix the X-Forwarded-For error
+        validate: { xForwardedForHeader: false } // suppress false-positive warning from CRA proxy in dev
     });
 };
 
@@ -17,7 +17,7 @@ export const createRateLimiter = (windowMs = 15 * 60 * 1000, max = 400) => {
 export const sanitizePath = (filePath) => {
     if (!filePath) return '';
     // Normalize the path and remove any attempts to traverse up
-    return path.normalize(filePath).replace(/^(\.\.(\/|\\|$))+/, '');
+    return path.normalize(filePath).replace(/^(\.\.(\/|\\|$))+/, '').replace(/\\/g, '/');
 };
 
 // Enhanced cookie security middleware

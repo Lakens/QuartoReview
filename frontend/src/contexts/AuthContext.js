@@ -21,30 +21,21 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const checkAuthentication = async () => {
+    const loadUser = async () => {
       try {
-        // First check if we're authenticated
-        const isAuthed = await checkAuth(`${API_BASE_URL}/api/auth/check`);
-        setIsAuthenticated(isAuthed);
-
-        if (isAuthed) {
-          // If authenticated, fetch user data
-          const userData = await fetchUser(`${API_BASE_URL}/api/auth/user`);
-          if (userData) {
-            setUser(userData);
-          }
+        const userData = await fetchUser();
+        if (userData) {
+          setUser(userData);
         }
+        setIsAuthenticated(true);
       } catch (err) {
-        console.error('Authentication check failed:', err);
-        setIsAuthenticated(false);
-        setUser(null);
-        setError(err.message);
+        console.error('Failed to load user:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    checkAuthentication();
+    loadUser();
   }, []);
 
   const logout = async () => {

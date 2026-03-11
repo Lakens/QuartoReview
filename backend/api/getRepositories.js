@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const token = req.session.githubToken;
+    const token = req.session.githubToken || process.env.GITHUB_TOKEN;
 
     if (!token) {
       console.error('No token found in session');

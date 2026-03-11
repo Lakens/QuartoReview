@@ -15,6 +15,7 @@ import { CommentMark } from '../../utils/CommentMark';
 import { RawCell } from '../../cells/rawCell';
 import { CodeCell } from '../../cells/codeCell';
 import { ipynbToTiptapDoc } from '../../utils/notebookConversionUtils';
+import { qmdToTiptapDoc } from '../../utils/quartoConversionUtils';
 import EditorToolbar from './EditorToolbar';
 import { CommentsSidebar } from '../Comments/CommentsSidebar';
 import LoginButton from '../Auth/LoginButton';
@@ -69,6 +70,7 @@ const EditorWrapper = ({
   setFilePath,
   ipynb,
   setIpynb,
+  qmdContent,
   handleLoadFile,
   handleSaveFile,
   saveMessage,
@@ -134,18 +136,11 @@ const EditorWrapper = ({
     const loadNotebooks = async () => {
       if (selectedRepo) {
         try {
-          // Format repository as "owner/repo"
           const repository = `${selectedRepo.owner.login}/${selectedRepo.name}`;
           const notebookList = await fetchNotebooksInRepo(repository);
           setNotebooks(notebookList);
-          
-          if (filePath && !ipynb) {
-            // If filePath exists in the list, load it
-            if (notebookList.includes(filePath)) {
-              handleLoadFile(filePath);
-            }
-          } else if (notebookList.length > 0 && !ipynb) {
-            // No filePath or not found - set first notebook as default
+          // Just populate the dropdown; don't auto-load
+          if (!filePath && notebookList.length > 0) {
             setFilePath(notebookList[0]);
           }
         } catch (err) {
@@ -156,12 +151,6 @@ const EditorWrapper = ({
     };
     loadNotebooks();
   }, [selectedRepo]);
-
-  useEffect(() => {
-    if (filePath && selectedRepo && !ipynb) {
-      handleLoadFile(filePath);
-    }
-  }, [filePath, selectedRepo]);
 
  const onLoadFile = async () => {
     try {
@@ -195,6 +184,18 @@ const EditorWrapper = ({
       });
     }
   }, [editor, ipynb]);
+
+  useEffect(() => {
+    if (editor && qmdContent) {
+      requestAnimationFrame(() => {
+        try {
+          qmdToTiptapDoc(qmdContent, editor);
+        } catch (err) {
+          setError(err.message);
+        }
+      });
+    }
+  }, [editor, qmdContent]);
 
   // Handle editor cleanup
   useEffect(() => {
@@ -243,7 +244,7 @@ const EditorWrapper = ({
                   onChange={(e) => setFilePath(e.target.value)}
                   className="repo-select glass-select"
                 >
-                  <option value="">Select a notebook</option>
+                  <option value="">Select a file</option>
                   {notebooks.map((notebook) => (
                     <option key={notebook} value={notebook}>
                       {notebook}
@@ -253,10 +254,10 @@ const EditorWrapper = ({
               )}
 
               <button className="glass-button" onClick={onLoadFile}>
-                Load Notebook
+                {filePath?.endsWith('.qmd') ? 'Load File' : 'Load Notebook'}
               </button>
               <button className="glass-button" onClick={onSaveFileClick}>
-                Save Notebook
+                {filePath?.endsWith('.qmd') ? 'Save File' : 'Save Notebook'}
               </button>
             </div>
         </div>

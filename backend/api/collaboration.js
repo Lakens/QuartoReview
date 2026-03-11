@@ -28,7 +28,7 @@ async function findGitHubUsername(octokit, email) {
 // Send invitation and generate share link
 router.post('/invite', async (req, res) => {
   const { username, email, repository, filePath } = req.body;
-  const token = req.session?.githubToken;
+  const token = req.session?.githubToken || process.env.GITHUB_TOKEN;
   
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -104,7 +104,7 @@ router.post('/invite', async (req, res) => {
 
 // Get pending invitations
 router.get('/invitations', async (req, res) => {
-  const token = req.session?.githubToken;
+  const token = req.session?.githubToken || process.env.GITHUB_TOKEN;
   
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -133,7 +133,7 @@ router.get('/invitations', async (req, res) => {
 // Accept invitation
 router.post('/accept-invite', async (req, res) => {
   const { invitationId } = req.body;
-  const token = req.session?.githubToken;
+  const token = req.session?.githubToken || process.env.GITHUB_TOKEN;
   
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });

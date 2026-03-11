@@ -334,6 +334,7 @@ export const TrackChangeExtension = Extension.create({
   // @ts-ignore
   onTransaction: props => {
     const { transaction, editor } = props
+    if (!editor?.view || !editor?.state) return
     // chinese input status check
     const isChineseStart =
       isStartChineseInput && composingStatus === IME_STATUS_CONTINUE
@@ -593,7 +594,7 @@ export const TrackChangeExtension = Extension.create({
           })
         }
         const newState = editor.state.apply(newChangeTr)
-        editor.view.updateState(newState)
+        if (newState && editor?.view) editor.view.updateState(newState)
         // TODO: if there has cursor change action, can there change be merged to one tr with one updateState?
       }
     })
@@ -602,14 +603,14 @@ export const TrackChangeExtension = Extension.create({
     const finalNewPos = trackChangeEnabled
       ? currentNewPos + posOffset
       : currentNewPos
-    if (trackChangeEnabled) {
+    if (trackChangeEnabled && editor?.view?.state) {
       const trWithChange = editor.view.state.tr
       trWithChange.setSelection(
         TextSelection.create(editor.view.state.doc, finalNewPos)
       )
       const newStateWithNewSelection = editor.view.state.apply(trWithChange)
       LOG_ENABLED && console.log("update cursor", finalNewPos)
-      editor.view.updateState(newStateWithNewSelection)
+      if (newStateWithNewSelection) editor.view.updateState(newStateWithNewSelection)
     }
     if (isChineseStart && hasAddAndDelete && trackChangeEnabled) {
       // if the first chinese input and have some content selected

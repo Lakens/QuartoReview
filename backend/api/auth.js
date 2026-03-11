@@ -24,9 +24,10 @@ router.get('/', (req, res) => {
 
 // Add a route to check session status
 router.get('/check', (req, res) => {
-  console.log('Processing session check request');
-  res.json({ 
-    authenticated: !!req.session?.githubToken,
+  const devMode = process.env.NODE_ENV !== 'production';
+  const hasToken = !!req.session?.githubToken || (devMode && !!process.env.GITHUB_TOKEN);
+  res.json({
+    authenticated: hasToken,
     sessionID: req.sessionID
   });
 });

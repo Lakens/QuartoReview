@@ -25,8 +25,7 @@
     "helmet": "^8.0.0",
     "js-yaml": "^4.1.0",
     "path-sanitizer": "^3.0.1",
-    "querystring": "^0.2.1",
-    "redis": "^4.7.0",
+"redis": "^4.7.0",
     "sanitize-filename": "^1.6.3",
     "session-file-store": "^1.5.0"
   }

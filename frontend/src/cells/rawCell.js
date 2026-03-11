@@ -374,18 +374,18 @@ export const RawCell = Node.create({
     
     addKeyboardShortcuts() {
       return {
-        Backspace: ({ editor, state }) => {
-          const { selection } = state;
+        Backspace: ({ editor }) => {
+          const { selection } = editor.state;
           const { $from } = selection;
-    
+
           // Case 1: Prevent Backspace when the cursor is inside the rawCell node
           if ($from.parent.type.name === 'rawCell' && $from.parentOffset === 0) {
             return true; // Block the backspace
           }
-    
+
           // Case 2: Prevent Backspace when the cursor is directly below the rawCell node
           const posBefore = $from.before($from.depth);
-          const prevNode = state.doc.nodeAt(posBefore);
+          const prevNode = editor.state.doc.nodeAt(posBefore);
           if (prevNode && prevNode.type.name === 'rawCell') {
             return true; // Block backspace from deleting the rawCell
           }
@@ -402,10 +402,10 @@ export const RawCell = Node.create({
           return false; // Allow default behavior
         },
     
-        Delete: ({ editor, state }) => {
-          const { selection } = state;
+        Delete: ({ editor }) => {
+          const { selection } = editor.state;
           const { $from } = selection;
-    
+
           // Case 1: Prevent Delete when the cursor is inside the rawCell node
           if (
             $from.parent.type.name === 'rawCell' &&
@@ -413,10 +413,10 @@ export const RawCell = Node.create({
           ) {
             return true; // Block the delete
           }
-    
+
           // Case 2: Prevent Delete when the cursor is directly above the rawCell node
           const posAfter = $from.after($from.depth);
-          const nextNode = state.doc.nodeAt(posAfter);
+          const nextNode = editor.state.doc.nodeAt(posAfter);
           if (nextNode && nextNode.type.name === 'rawCell') {
             return true; // Block delete from removing the rawCell
           }

@@ -49,15 +49,15 @@ export const fetchNotebook = async (path, repository) => {
     const response = await api.get('/api/fetchFile', {
       params: { path, repository }
     });
-    
+
     console.log('Raw response:', response.data);
-    
+
     // Extract ipynb from response
     const ipynb = response.data.ipynb;
     if (!ipynb) {
       throw new Error('No notebook data in response');
     }
-    
+
     console.log('Notebook data:', ipynb);
     return ipynb;
   } catch (error) {
@@ -67,6 +67,21 @@ export const fetchNotebook = async (path, repository) => {
       response: error.response?.data,
       status: error.response?.status
     });
+    throw error;
+  }
+};
+
+// Unified file fetcher that handles both .ipynb and .qmd
+export const fetchFile = async (path, repository) => {
+  try {
+    const response = await api.get('/api/fetchFile', { params: { path, repository } });
+    const { fileType, ipynb, qmdContent } = response.data;
+    if (fileType === 'qmd') {
+      return { fileType: 'qmd', content: qmdContent };
+    }
+    return { fileType: 'ipynb', content: ipynb };
+  } catch (error) {
+    console.error('Error fetching file:', error);
     throw error;
   }
 };
@@ -173,11 +188,7 @@ export const handleSharedDocument = async (owner, repo, path) => {
       };
     }
     
-    // No invitation, just try to load the document
-    return {
-      hasInvitation: false,
-      document: await fetchNotebook(path, `${owner}/${repo}`)
-    };
+    return { hasInvitation: false };
   } catch (error) {
     console.error('Failed to handle shared document:', error);
     throw error;

@@ -8,7 +8,7 @@ router.post('/', async (req, res) => {
   try {
     const { content, path, repository } = req.body;
     
-    const token = req.session?.githubToken;
+    const token = req.session?.githubToken || process.env.GITHUB_TOKEN;
 
     if (!token) {
       console.error('No GitHub token found in session');
