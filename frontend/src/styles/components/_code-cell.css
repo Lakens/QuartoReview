@@ -33,6 +33,19 @@
   overflow-x: auto;
 }
 
+.code-cell-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: none;
+  outline: none;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  color: #2d2d2d;
+}
+
 /* Output Styles */
 .code-cell-output-stream,
 .code-cell-output-text,

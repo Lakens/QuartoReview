@@ -201,9 +201,21 @@ function CodeCellNodeView({ node, editor, getPos }) {
       </div>
 
       {showCode && (
-        <pre className="code-cell-content">
-          <code>{Array.isArray(source) ? source.join('') : source}</code>
-        </pre>
+        <textarea
+          className="code-cell-content code-cell-textarea"
+          value={Array.isArray(source) ? source.join('') : (source || '')}
+          onChange={(e) => {
+            const pos = getPos();
+            if (typeof pos === 'number') {
+              editor.chain()
+                .setTextSelection(pos)
+                .updateAttributes('codeCell', { source: e.target.value })
+                .run();
+            }
+          }}
+          spellCheck={false}
+          rows={Math.max(3, (Array.isArray(source) ? source.join('') : (source || '')).split('\n').length)}
+        />
       )}
 
       {runError && (
