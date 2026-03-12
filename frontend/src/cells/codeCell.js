@@ -1,6 +1,6 @@
 import { Node } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronUp, faChevronDown, faPlay, faSpinner } from '@fortawesome/free-solid-svg-icons';
@@ -86,6 +86,26 @@ function CodeCellNodeView({ node, editor, getPos }) {
   const [showCode, setShowCode] = useState(!folded);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState(null);
+  const textareaRef = useRef(null);
+
+  // Attach native (non-React) keyboard listeners directly on the textarea so
+  // they fire at the source element during bubble, before ProseMirror's
+  // listener on the editor div gets a chance to swallow the events.
+  // React 17+ synthetic events are delegated to the React root, which is
+  // higher in the DOM than the ProseMirror element — so they fire too late.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const stop = (e) => e.stopPropagation();
+    el.addEventListener('keydown', stop);
+    el.addEventListener('keyup', stop);
+    el.addEventListener('keypress', stop);
+    return () => {
+      el.removeEventListener('keydown', stop);
+      el.removeEventListener('keyup', stop);
+      el.removeEventListener('keypress', stop);
+    };
+  }, []);
 
   const toggleCode = () => {
     setShowCode((prev) => !prev);
@@ -213,11 +233,9 @@ function CodeCellNodeView({ node, editor, getPos }) {
                 .run();
             }
           }}
+          ref={textareaRef}
           spellCheck={false}
           rows={Math.max(3, (Array.isArray(source) ? source.join('') : (source || '')).split('\n').length)}
-          onKeyDown={(e) => e.stopPropagation()}
-          onKeyUp={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
         />
       )}
 
