@@ -145,8 +145,8 @@ body {
 /* ── Notification banner ─────────────────────────────────────────────────── */
 
 .notification {
-  background: #EFF8F2;
-  border-bottom: 1px solid #A8D5B5;
+  background: var(--color-success-bg);
+  border-bottom: 1px solid var(--color-success-border);
   color: var(--color-success);
   font-size: 0.8rem;
   padding: 8px 1.25rem;
@@ -154,14 +154,14 @@ body {
 }
 
 .notification.error {
-  background: #FEF0EF;
-  border-color: #F5B9B4;
+  background: var(--color-error-bg);
+  border-color: var(--color-error-border);
   color: var(--color-danger);
 }
 
 .pkg-install-banner {
   background: var(--color-primary-soft);
-  border-bottom: 1px solid #FFC5AA;
+  border-bottom: 1px solid var(--color-warning-border);
   color: var(--color-primary-active);
   font-size: 0.8rem;
   padding: 8px 1.25rem;
@@ -170,8 +170,8 @@ body {
 }
 
 .pkg-install-banner--error {
-  background: #FEF0EF;
-  border-color: #F5B9B4;
+  background: var(--color-error-bg);
+  border-color: var(--color-error-border);
   color: var(--color-danger);
 }
 
@@ -320,7 +320,7 @@ body {
 .code-cell-toggle-text { margin-left: 0.3em; }
 
 .code-cell-content {
-  background: #FAFAF8;
+  background: var(--color-code-bg);
   padding: 0.9em 1em;
   overflow-x: auto;
   white-space: pre-wrap;
@@ -335,7 +335,7 @@ body {
 .code-cell-output-image img { max-width: 100%; border-radius: var(--radius-sm); }
 .code-cell-output-text {
   margin-top: 0.75em;
-  background: #FAFAF8;
+  background: var(--color-code-bg);
   padding: 0.9em 1em;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);

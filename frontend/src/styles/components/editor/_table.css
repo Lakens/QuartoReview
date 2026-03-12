@@ -2,14 +2,14 @@
 
 .ProseMirror table {
   border-collapse: collapse;
-  margin: 2em auto; /* Center the table */
-  width: 65%; /* APA-style width */
+  margin: 2em auto;
+  width: 65%;
   font-size: 14px;
   line-height: 1.5;
   border: none;
-  table-layout: fixed; /* Fixed layout for better column control */
-  min-width: 400px; /* Minimum width to ensure readability */
-  max-width: 800px; /* Maximum width for very wide screens */
+  table-layout: fixed;
+  min-width: 400px;
+  max-width: 800px;
 }
 
 /* Table Header */
@@ -17,7 +17,7 @@
   font-weight: bold;
   text-align: left;
   padding: 12px 8px;
-  border-bottom: 2px solid #333; /* Double bottom border for header row */
+  border-bottom: 2px solid var(--color-text);
   background-color: transparent;
   vertical-align: bottom;
 }
@@ -25,27 +25,27 @@
 /* Table Cells */
 .ProseMirror td {
   padding: 8px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--color-border);
   vertical-align: top;
-  word-wrap: break-word; /* Allow text to wrap in cells */
+  word-wrap: break-word;
 }
 
-/* Alternating Row Colors (optional in APA) */
+/* Alternating Row Colors */
 .ProseMirror tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: var(--color-surface-muted);
 }
 
-/* Hover effect for better UX */
+/* Hover effect */
 .ProseMirror tr:hover {
-  background-color: #f5f5f5;
+  background-color: var(--color-surface-muted);
 }
 
 /* Selected cells */
 .ProseMirror .selectedCell {
-  background-color: #e9f1ff;
+  background-color: var(--color-primary-soft);
 }
 
-/* Column header (if used) */
+/* Column header */
 .ProseMirror td:first-child {
   font-weight: normal;
 }
@@ -56,13 +56,13 @@
   text-align: left;
   margin-bottom: 10px;
   font-style: italic;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
-/* Table footnotes (if needed) */
+/* Table footnotes */
 .ProseMirror .tableFootnote {
   font-size: 12px;
-  color: #666;
+  color: var(--color-text-secondary);
   margin-top: 8px;
 }
 
@@ -74,7 +74,7 @@
   right: -2px;
   top: 0;
   bottom: 0;
-  background-color: #adf;
+  background-color: var(--color-primary);
   pointer-events: none;
 }
 
@@ -88,11 +88,11 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background-color: #adf;
+  background-color: var(--color-primary);
   pointer-events: none;
 }
 
-/* Table wrapper for better mobile handling */
+/* Table wrapper */
 .tableWrapper {
   overflow-x: auto;
   max-width: 100%;
@@ -104,7 +104,7 @@
   .ProseMirror table {
     font-size: 12px;
   }
-  
+
   .ProseMirror td,
   .ProseMirror th {
     padding: 6px 4px;

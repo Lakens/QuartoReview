@@ -71,6 +71,11 @@ const EditorWrapper = ({
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
   const [commentMarkKey, setCommentMarkKey] = useState(0);
   const [pkgStatus, setPkgStatus] = useState({ phase: 'idle', current: null, index: 0, total: 0 });
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   useEffect(() => {
     return subscribePackageStatus(setPkgStatus);
@@ -318,6 +323,8 @@ const EditorWrapper = ({
             referenceManager={referenceManager}
             showPreview={showPreview}
             onTogglePreview={() => setShowPreview(v => !v)}
+            darkMode={darkMode}
+            onToggleDark={() => setDarkMode(v => !v)}
           />
         )}
       </header>

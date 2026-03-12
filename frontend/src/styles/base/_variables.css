@@ -22,6 +22,17 @@
   --color-warning:        #E6A817;
   --color-danger:         #D94F3D;
 
+  /* Semantic backgrounds (notifications, banners) */
+  --color-success-bg:     #EFF8F2;
+  --color-success-border: #A8D5B5;
+  --color-error-bg:       #FEF0EF;
+  --color-error-border:   #F5B9B4;
+  --color-warning-border: #FFC5AA;
+
+  /* Code cell surfaces */
+  --color-code-bg:        #FAFAF8;
+  --color-code-border:    #E0E0E0;
+
   /* Layout */
   --header-height:        100px;
   --toolbar-height:       44px;
@@ -41,4 +52,31 @@
   --editor-font-code:       'Menlo', 'Monaco', 'Courier New', monospace;
   --editor-current-font:    var(--editor-font-primary);
   --ui-font:                'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  --color-bg:             #1A1A18;
+  --color-surface:        #242422;
+  --color-surface-muted:  #2E2E2C;
+  --color-border:         #3A3A38;
+  --color-border-strong:  #4A4A48;
+  --color-text:           #F0EDE8;
+  --color-text-secondary: #9A958F;
+  --color-text-light:     #5A5550;
+  --color-primary-soft:   #2A1508;
+
+  --color-success-bg:     #0D1F15;
+  --color-success-border: #1E5C35;
+  --color-error-bg:       #1F0D0B;
+  --color-error-border:   #7A2525;
+  --color-warning-border: #7A4A20;
+
+  --color-code-bg:        #1E1E1C;
+  --color-code-border:    #3A3A38;
+
+  --shadow-xs:            0 1px 2px rgba(0,0,0,0.3);
+  --shadow-sm:            0 2px 6px rgba(0,0,0,0.35);
+  --shadow-md:            0 4px 16px rgba(0,0,0,0.4);
 }

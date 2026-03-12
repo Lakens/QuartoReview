@@ -1,6 +1,6 @@
 .code-cell {
   margin: 1rem 0;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-code-border);
   border-radius: 4px;
 }
 
@@ -11,22 +11,22 @@
   gap: 0.5rem;
   padding: 0.5rem;
   border: none;
-  background: #f5f5f5;
+  background: var(--color-surface-muted);
   cursor: pointer;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--color-text-secondary);
   font-family: var(--ui-font);
 }
 
 .code-cell-toggle:hover {
-  background: #eeeeee;
+  background: var(--color-border);
 }
 
 .code-cell-content {
   margin: 0;
   padding: 1rem;
-  background: #f8f9fa;
-  border-top: 1px solid #e0e0e0;
+  background: var(--color-code-bg);
+  border-top: 1px solid var(--color-code-border);
   font-family: var(--editor-font-code);
   font-size: 0.9rem;
   line-height: 1.4;
@@ -43,7 +43,8 @@
   white-space: pre;
   overflow-wrap: normal;
   overflow-x: auto;
-  color: #2d2d2d;
+  color: var(--color-text);
+  background: transparent;
 }
 
 /* Output Styles */
@@ -52,8 +53,8 @@
 .code-cell-output-json {
   margin: 0;
   padding: 1rem;
-  background: white;
-  border-top: 1px solid #e0e0e0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-code-border);
   font-family: var(--editor-font-code);
   font-size: 0.9rem;
   line-height: 1.4;
@@ -69,15 +70,15 @@
 
 .code-cell-output-html {
   padding: 1rem;
-  background: white;
-  border-top: 1px solid #e0e0e0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-code-border);
   overflow-x: auto;
 }
 
 .code-cell-output-image {
   padding: 1rem;
-  background: white;
-  border-top: 1px solid #e0e0e0;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-code-border);
   text-align: center;
 }
 
@@ -105,7 +106,7 @@
   gap: 5px;
   padding: 0.35rem 0.75rem;
   border: none;
-  border-left: 1px solid #e0e0e0;
+  border-left: 1px solid var(--color-code-border);
   background: #f0f7ff;
   color: #0066cc;
   font-size: 0.82rem;
@@ -136,9 +137,9 @@
   align-items: center;
   padding: 0.35rem 0.6rem;
   border: none;
-  border-left: 1px solid #e0e0e0;
+  border-left: 1px solid var(--color-code-border);
   background: transparent;
-  color: #aaa;
+  color: var(--color-text-light);
   font-size: 0.8rem;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
@@ -164,4 +165,29 @@
   font-size: 0.85rem;
   font-family: var(--ui-font, inherit);
   border-top: 1px solid #ffc0c0;
+}
+
+/* ── Dark-mode overrides for semantic colors ────────────────────── */
+[data-theme="dark"] .code-cell-run-btn {
+  background: #0d2035;
+  color: #6ab4ff;
+  border-left-color: var(--color-code-border);
+}
+[data-theme="dark"] .code-cell-run-btn:hover:not(:disabled) {
+  background: #163050;
+  color: #9dd0ff;
+}
+[data-theme="dark"] .code-cell-run-btn--running {
+  background: #1f1600;
+  color: #e6a817;
+}
+[data-theme="dark"] .code-cell-delete-btn:hover {
+  background: #2a0d0d;
+  color: #e57373;
+}
+[data-theme="dark"] .code-cell-output-stderr,
+[data-theme="dark"] .code-cell-run-error {
+  background: #2a0d0d;
+  color: #e57373;
+  border-top-color: #6a1a1a;
 }

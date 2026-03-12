@@ -41,6 +41,10 @@
 .lt-badge-grammar  { background: #ebf8ff; color: #3182ce; }
 .lt-badge-style    { background: #fffbeb; color: #d69e2e; }
 
+[data-theme="dark"] .lt-badge-spelling { background: #2a0d0d; color: #fc8181; }
+[data-theme="dark"] .lt-badge-grammar  { background: #0d1f2a; color: #63b3ed; }
+[data-theme="dark"] .lt-badge-style    { background: #1f1a0d; color: #f6ad55; }
+
 .lt-popover-close {
   background: none;
   border: none;
