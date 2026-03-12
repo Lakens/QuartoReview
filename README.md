@@ -14,13 +14,15 @@ Resolve is a browser-based editor for `.qmd` (Quarto Markdown) files stored on G
 
 ---
 
-## Quick start (Windows)
+## Quick start
 
-1. Install the prerequisites (see below)
-2. Clone this repository
-3. Create a GitHub OAuth App and add a `.env` file (see below)
-4. Run `npm install` in both `backend/` and `frontend/`
-5. Double-click `start.bat`
+| Step | Windows | Mac |
+|------|---------|-----|
+| 1. Install Node.js | Download from https://nodejs.org (LTS version) | Same |
+| 2. Get the code | Download ZIP from GitHub, extract it | Same |
+| 3. Install dependencies | Double-click `install.bat` | Run `./install.sh` in Terminal |
+| 4. Create `.env` file | See [GitHub OAuth setup](#step-3--create-a-github-oauth-app) below | Same |
+| 5. Launch the app | Double-click `start.bat` | Run `./start.sh` in Terminal |
 
 ---
 
@@ -31,13 +33,6 @@ Resolve is a browser-based editor for `.qmd` (Quarto Markdown) files stored on G
 Download and install Node.js **version 18 or later** from https://nodejs.org
 Choose the **LTS** version. Accept all defaults during installation.
 
-To verify it worked, open a terminal and run:
-```
-node --version
-npm --version
-```
-Both should print a version number.
-
 ### 2. A GitHub account
 
 You need a GitHub account to use Resolve. Sign up at https://github.com if you don't have one.
@@ -46,28 +41,32 @@ You need a GitHub account to use Resolve. Sign up at https://github.com if you d
 
 ## Installation
 
-### Step 1 — Clone the repository
+### Step 1 — Get the code
 
-Open a terminal (Command Prompt or PowerShell on Windows, Terminal on Mac) and run:
+**Option A — Download ZIP** (easiest, no git required):
+1. Go to https://github.com/Lakens/resolve
+2. Click the green **"Code"** button → **"Download ZIP"**
+3. Extract the ZIP somewhere on your computer (e.g. your Desktop or Documents folder)
 
+**Option B — Clone with git** (if you have git installed):
 ```bash
 git clone https://github.com/Lakens/resolve.git
-cd resolve
 ```
-
-Or download the ZIP from GitHub and extract it.
 
 ### Step 2 — Install dependencies
 
-```bash
-cd backend
-npm install
+This only needs to be done once. It downloads all the packages the app needs.
 
-cd ../frontend
-npm install
+**Windows:** Double-click `install.bat` in the resolve folder.
+**Mac:** Open Terminal, drag the `install.sh` file into it, press Enter. If you get a "permission denied" error, first run:
+```bash
+chmod +x install.sh
+./install.sh
 ```
 
-This downloads all required packages. It may take a few minutes the first time.
+The script checks that Node.js is installed and then runs `npm install` in both the `backend` and `frontend` folders automatically. It will tell you when it's done and what to do next.
+
+> **What is npm install?** npm is Node's package manager — it downloads the libraries the app depends on into a `node_modules` folder. This is like installing R packages, but for JavaScript.
 
 ### Step 3 — Create a GitHub OAuth App
 
@@ -185,8 +184,10 @@ resolve/
 │   │   ├── components/   # Editor, toolbar, comments, citations
 │   │   └── utils/        # API helpers, GitHub utils, WebR singleton
 │   └── public/           # Static files (WebR worker scripts)
-├── start.bat             # Windows launch script
-├── start.sh              # Mac/Linux launch script
+├── install.bat           # Windows: first-time dependency install
+├── install.sh            # Mac/Linux: first-time dependency install
+├── start.bat             # Windows: launch backend + frontend
+├── start.sh              # Mac/Linux: launch backend + frontend
 └── README.md
 ```
 
