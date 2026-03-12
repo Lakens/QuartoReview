@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronUp, faChevronDown, faPlay, faSpinner, faTrash } from '@fortawesome/free-solid-svg-icons';
 
-import { getWebR, getWebRStatus, imageBitmapToBase64 } from '../utils/webRSingleton';
+import { getWebR, getWebRStatus } from '../utils/webRSingleton';
 
 export const CodeCell = Node.create({
   name: 'codeCell',
@@ -141,7 +141,13 @@ function CodeCellNodeView({ node, editor, getPos }) {
       try {
         const code = Array.isArray(source) ? source.join('') : (source || '');
 
-        const { output } = await shelter.captureR(code, {
+        // Close any canvas device left open from a previous run, then open a
+        // fresh one.  We do NOT call dev.off() after the user code because that
+        // sends a blank final canvasImage which would overwrite the real plot.
+        // invisible() suppresses the return values so they don't print as text.
+        const wrappedCode = `invisible(try(dev.off(), silent=TRUE))\ninvisible(webr::canvas())\n${code}`;
+
+        const { output } = await shelter.captureR(wrappedCode, {
           withAutoprint: true,
           captureStreams: true,
           captureConditions: false,
@@ -168,18 +174,47 @@ function CodeCellNodeView({ node, editor, getPos }) {
         }
 
         // --- Plot output ---
+        // canvasImage messages are INCREMENTAL — each bitmap contains only what
+        // was drawn in that step (like a display list entry). To get the final
+        // image we must composite all bitmaps per page onto an OffscreenCanvas,
+        // exactly as webR's built-in canvas handler does internally.
+        // canvasNewPage signals the start of a new plot/page.
+        let currentPageBitmaps = [];
+        const pages = [];
         for (const msg of pendingMessages) {
-          if (msg.type === 'canvas' && msg.data?.event === 'canvasImage') {
-            try {
-              const base64 = imageBitmapToBase64(msg.data.image);
-              newOutputs.push({
-                output_type: 'display_data',
-                data: { 'image/png': base64 },
-                metadata: {}
-              });
-            } catch (_) {
-              // If image conversion fails, silently skip the plot
+          if (msg.type === 'canvas') {
+            if (msg.data?.event === 'canvasNewPage') {
+              if (currentPageBitmaps.length > 0) pages.push([...currentPageBitmaps]);
+              currentPageBitmaps = [];
+            } else if (msg.data?.event === 'canvasImage') {
+              currentPageBitmaps.push(msg.data.image);
             }
+          }
+        }
+        if (currentPageBitmaps.length > 0) pages.push(currentPageBitmaps);
+
+        for (const bitmaps of pages) {
+          try {
+            const w = bitmaps[0].width;
+            const h = bitmaps[0].height;
+            const offscreen = new OffscreenCanvas(w, h);
+            const ctx = offscreen.getContext('2d');
+            for (const bitmap of bitmaps) {
+              ctx.drawImage(bitmap, 0, 0);
+            }
+            const blob = await offscreen.convertToBlob({ type: 'image/png' });
+            const arrayBuffer = await blob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const base64 = btoa(binary);
+            newOutputs.push({
+              output_type: 'display_data',
+              data: { 'image/png': base64 },
+              metadata: {}
+            });
+          } catch (_) {
+            // If compositing fails, silently skip the plot
           }
         }
 

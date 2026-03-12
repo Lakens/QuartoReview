@@ -78,6 +78,10 @@ export async function getWebR() {
       await webR.init();
       console.log('[WebR] init() resolved — R is ready!');
 
+      // Make kbl() / knitr::kable() default to HTML output so tables render
+      // correctly in the browser without needing format = "html" each time.
+      await webR.evalRVoid('options(knitr.table.format = "html")');
+
       _instance = webR;
 
       // Pre-install packages after R is ready
