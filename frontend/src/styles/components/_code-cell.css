@@ -72,3 +72,64 @@
   max-width: 100%;
   height: auto;
 }
+
+/* ── Cell header (toggle + run button row) ───────────────────────── */
+
+.code-cell-header {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.code-cell-header .code-cell-toggle {
+  flex: 1;
+}
+
+/* Run button */
+.code-cell-run-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.35rem 0.75rem;
+  border: none;
+  border-left: 1px solid #e0e0e0;
+  background: #f0f7ff;
+  color: #0066cc;
+  font-size: 0.82rem;
+  font-family: var(--ui-font, inherit);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.code-cell-run-btn:hover:not(:disabled) {
+  background: #d6eaff;
+  color: #004999;
+}
+
+.code-cell-run-btn:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+.code-cell-run-btn--running {
+  background: #fff8e1;
+  color: #b36b00;
+}
+
+/* stderr output gets a red tint */
+.code-cell-output-stderr {
+  background: #fff5f5;
+  color: #c0392b;
+  border-top: 1px solid #ffc0c0;
+}
+
+/* Inline error message shown when execution throws */
+.code-cell-run-error {
+  padding: 0.5rem 1rem;
+  background: #fff5f5;
+  color: #c0392b;
+  font-size: 0.85rem;
+  font-family: var(--ui-font, inherit);
+  border-top: 1px solid #ffc0c0;
+}
