@@ -146,6 +146,7 @@ const EditorWrapper = ({
 
   // Word count — prose only, excludes codeCell and rawCell nodes
   const [wordCount, setWordCount] = useState(0);
+  const wordCountAtLastSave = useRef(0);
   useEffect(() => {
     if (!editor) return;
     const countWords = () => {
@@ -181,7 +182,7 @@ const EditorWrapper = ({
     loadNotebooks();
   }, [selectedRepo]);
 
- const onLoadFile = async () => {
+  const onLoadFile = async () => {
     try {
       await handleLoadFile();
     } catch (error) {
@@ -193,6 +194,7 @@ const EditorWrapper = ({
     if (!editor) return;
     try {
       await handleSaveFile(editor);
+      wordCountAtLastSave.current = wordCount;
     } catch (error) {
       setError(error.message);
     }
@@ -226,6 +228,24 @@ const EditorWrapper = ({
     }
   }, [editor, qmdContent]);
 
+  // After content loads, reset the save baseline so newly-loaded words don't
+  // count as unsaved. Double rAF: first rAF is when the content conversion runs;
+  // second rAF is after the editor has updated and we can read the real count.
+  useEffect(() => {
+    if (!editor || (!ipynb && !qmdContent)) return;
+    const outer = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        let text = '';
+        editor.state.doc.descendants((node) => {
+          if (node.type.name === 'codeCell' || node.type.name === 'rawCell') return false;
+          if (node.isText) text += ' ' + node.text;
+        });
+        wordCountAtLastSave.current = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+      });
+    });
+    return () => cancelAnimationFrame(outer);
+  }, [editor, ipynb, qmdContent]);
+
   // Handle editor cleanup
   useEffect(() => {
     return () => {
@@ -255,45 +275,40 @@ const EditorWrapper = ({
       )}
       <header className="app-header">
         <div className="header-top">
-          <div className="header-controls">
-            <div className="header-row">
-              <select
-                value={selectedRepo?.fullName || ''}
-                onChange={(e) => {
-                  const repo = repositories.find(r => r.fullName === e.target.value);
-                  setSelectedRepo(repo);
-                }}
-                className="repo-select"
-              >
-                <option value="">Select Repository</option>
-                {repositories.map((repo) => (
-                  <option key={repo.id} value={repo.fullName}>
-                    {repo.fullName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="header-row">
-              <select
-                value={filePath}
-                onChange={(e) => setFilePath(e.target.value)}
-                className="file-select"
-              >
-                <option value="">Select a file</option>
-                {notebooks.map((notebook) => (
-                  <option key={notebook} value={notebook}>
-                    {notebook}
-                  </option>
-                ))}
-              </select>
-              <button className="hdr-btn" onClick={onLoadFile}>
-                {filePath?.endsWith('.qmd') ? 'Load' : 'Load'}
-              </button>
-              <button className="hdr-btn" onClick={onSaveFileClick}>
-                Save
-              </button>
-            </div>
-          </div>
+          <select
+            value={selectedRepo?.fullName || ''}
+            onChange={(e) => {
+              const repo = repositories.find(r => r.fullName === e.target.value);
+              setSelectedRepo(repo);
+            }}
+            className="repo-select"
+          >
+            <option value="">Select Repository</option>
+            {repositories.map((repo) => (
+              <option key={repo.id} value={repo.fullName}>
+                {repo.fullName}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filePath}
+            onChange={(e) => setFilePath(e.target.value)}
+            className="file-select"
+          >
+            <option value="">Select a file</option>
+            {notebooks.map((notebook) => (
+              <option key={notebook} value={notebook}>
+                {notebook}
+              </option>
+            ))}
+          </select>
+          <button className="hdr-btn" onClick={onLoadFile}>Load</button>
+          <button className="hdr-btn" onClick={onSaveFileClick}>Save</button>
+          {wordCount - wordCountAtLastSave.current >= 50 && (
+            <span className="hdr-save-nudge">
+              {wordCount - wordCountAtLastSave.current} unsaved words
+            </span>
+          )}
         </div>
         {editor && (
           <EditorToolbar
@@ -307,7 +322,7 @@ const EditorWrapper = ({
         )}
       </header>
 
-      <main className="app-main flex-grow overflow-y-auto">
+      <main className="app-main">
         {!isAuthenticated ? (
           <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '4rem' }}>
             <LoginButton />

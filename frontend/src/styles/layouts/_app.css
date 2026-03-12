@@ -10,7 +10,8 @@ body {
 }
 
 .app-container {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
@@ -20,10 +21,9 @@ body {
 
 .app-header {
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-xs);
-  position: sticky;
-  top: 0;
+  border-bottom: 1px solid var(--color-border-strong);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  flex-shrink: 0;
   z-index: 100;
 }
 
@@ -31,8 +31,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 12px 1.25rem;
-  gap: 1rem;
+  padding: 8px 1.25rem;
+  gap: 6px;
 }
 
 /* Brand */
@@ -70,19 +70,6 @@ body {
   vertical-align: middle;
 }
 
-/* File controls — two rows stacked on the right */
-.header-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: flex-start;
-}
-
-.header-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 
 /* Repo select is narrower */
 .repo-select {
@@ -195,7 +182,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  height: calc(100vh - var(--header-height));
+  min-height: 0;
 }
 
 .content-container {
@@ -240,6 +227,39 @@ body {
   font-size: 0.72rem;
   color: var(--color-text-muted, #999);
   text-align: right;
+  user-select: none;
+}
+
+.statusbar-save-nudge {
+  color: var(--color-primary, #ff6b35);
+}
+
+.statusbar-save-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--color-primary, #ff6b35);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.statusbar-save-link:hover {
+  color: var(--color-primary-active, #e55a2b);
+}
+
+.hdr-save-nudge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-primary-active);
+  background: var(--color-primary-soft);
+  border: 1px solid #FFCDB8;
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
   user-select: none;
 }
 
