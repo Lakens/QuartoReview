@@ -215,6 +215,9 @@ function CodeCellNodeView({ node, editor, getPos }) {
           }}
           spellCheck={false}
           rows={Math.max(3, (Array.isArray(source) ? source.join('') : (source || '')).split('\n').length)}
+          onKeyDown={(e) => e.stopPropagation()}
+          onKeyUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         />
       )}
 
