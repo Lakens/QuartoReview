@@ -22,19 +22,42 @@ let _initPromise = null;
 export async function getWebR() {
   if (!_initPromise) {
     _initPromise = (async () => {
-      // Dynamic import keeps the large WebR bundle out of the initial chunk.
-      const { WebR } = await import('@r-wasm/webr');
+      console.log('[WebR] Starting initialization…');
+      console.log('[WebR] crossOriginIsolated =', window.crossOriginIsolated);
+      console.log('[WebR] SharedArrayBuffer available =', typeof SharedArrayBuffer !== 'undefined');
 
-      // WebR 0.2.x needs its worker scripts served from the app root.
-      // We copy webr-worker.js + webr-serviceworker.js to /public so Vite
-      // serves them at "/".  Explicitly choosing ServiceWorker (channelType 2)
-      // skips the SharedArrayBuffer attempt, which requires COOP/COEP headers
-      // that most dev servers (and many hosts) don't set.
-      const webR = new WebR({ channelType: 2, serviceWorkerUrl: '/' });
+      const { WebR } = await import('@r-wasm/webr');
+      console.log('[WebR] Package imported, creating instance…');
+
+      let channelType, channelLabel;
+      if (window.crossOriginIsolated) {
+        channelType = 1; // SharedArrayBuffer — fastest
+        channelLabel = 'SharedArrayBuffer';
+      } else {
+        channelType = 2; // ServiceWorker fallback
+        channelLabel = 'ServiceWorker';
+      }
+      console.log(`[WebR] Using channel: ${channelLabel} (type ${channelType})`);
+
+      // baseUrl points to our local Vite middleware that serves the webr dist
+      // directory — avoids downloading the 50 MB R binary from the CDN.
+      const webR = new WebR(
+        channelType === 2
+          ? { channelType: 2, baseUrl: '/webr-dist/', serviceWorkerUrl: '/' }
+          : { channelType: 1, baseUrl: '/webr-dist/' }
+      );
+
+      console.log('[WebR] Calling webR.init() — waiting for R to boot…');
       await webR.init();
+      console.log('[WebR] init() resolved — R is ready!');
+
       _instance = webR;
       return webR;
-    })();
+    })().catch(err => {
+      console.error('[WebR] Initialization failed:', err);
+      _initPromise = null; // allow retry
+      throw err;
+    });
   }
   return _initPromise;
 }

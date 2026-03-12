@@ -105,7 +105,7 @@ function CodeCellNodeView({ node, editor, getPos }) {
       el.removeEventListener('keyup', stop);
       el.removeEventListener('keypress', stop);
     };
-  }, []);
+  }, [showCode]);
 
   const toggleCode = () => {
     setShowCode((prev) => !prev);
@@ -177,10 +177,12 @@ function CodeCellNodeView({ node, editor, getPos }) {
         // Persist outputs back onto the TipTap node
         const pos = getPos();
         if (typeof pos === 'number') {
-          editor.chain()
-            .setTextSelection(pos)
-            .updateAttributes('codeCell', { outputs: newOutputs })
-            .run();
+          editor.view.dispatch(
+            editor.view.state.tr.setNodeMarkup(pos, undefined, {
+              ...node.attrs,
+              outputs: newOutputs,
+            })
+          );
         }
       } finally {
         await shelter.purge();
@@ -227,10 +229,12 @@ function CodeCellNodeView({ node, editor, getPos }) {
           onChange={(e) => {
             const pos = getPos();
             if (typeof pos === 'number') {
-              editor.chain()
-                .setTextSelection(pos)
-                .updateAttributes('codeCell', { source: e.target.value })
-                .run();
+              editor.view.dispatch(
+                editor.view.state.tr.setNodeMarkup(pos, undefined, {
+                  ...node.attrs,
+                  source: e.target.value,
+                })
+              );
             }
           }}
           ref={textareaRef}
