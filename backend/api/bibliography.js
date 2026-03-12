@@ -1,5 +1,6 @@
 import express from 'express';
 import { Octokit } from '@octokit/rest';
+import http from 'http';
 const router = express.Router();
 
 async function loadBibliography(req, res) {
@@ -106,7 +107,28 @@ async function saveBibliography(req, res) {
   }
 }
 
+async function zoteroPickReference(req, res) {
+  // Proxy to Better BibTeX CAYW endpoint — blocks until user picks in Zotero
+  const bbtUrl = 'http://localhost:23119/better-bibtex/cayw?format=bibtex';
+  try {
+    const bibtex = await new Promise((resolve, reject) => {
+      const request = http.get(bbtUrl, { timeout: 120000 }, (response) => {
+        let data = '';
+        response.on('data', chunk => { data += chunk; });
+        response.on('end', () => resolve(data));
+      });
+      request.on('error', reject);
+      request.on('timeout', () => { request.destroy(); reject(new Error('Zotero request timed out')); });
+    });
+    res.json({ bibtex });
+  } catch (err) {
+    console.error('[Zotero CAYW] Error:', err.message);
+    res.status(503).json({ error: 'Could not reach Zotero. Make sure Zotero is open with Better BibTeX installed.' });
+  }
+}
+
 router.get('/load', loadBibliography);
 router.post('/save', saveBibliography);
+router.get('/zotero-pick', zoteroPickReference);
 
 export default router;

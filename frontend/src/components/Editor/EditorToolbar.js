@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { 
-  FaBold, FaItalic, FaUnderline, FaStrikethrough, 
-  FaListUl, FaListOl, FaQuoteRight, FaCode, 
+import {
+  FaBold, FaItalic, FaUnderline, FaStrikethrough,
+  FaListUl, FaListOl, FaQuoteRight, FaCode,
   FaPalette, FaFill, FaComment, FaUndo, FaRedo,
-  FaTextHeight, FaHighlighter, FaImage, 
-  FaTable, FaToggleOn, FaToggleOff, FaShare
+  FaTextHeight, FaHighlighter, FaImage,
+  FaTable, FaToggleOn, FaToggleOff, FaShare, FaBookOpen
 } from 'react-icons/fa';
 import { BiCodeBlock } from 'react-icons/bi';
 import { MdFormatClear } from 'react-icons/md';
@@ -12,10 +12,12 @@ import { RiDoubleQuotesL } from 'react-icons/ri';
 import { AiOutlineSplitCells, AiOutlineInsertRowBelow } from 'react-icons/ai';
 import { BsTable } from 'react-icons/bs';
 import '../../styles/components/editor/_toolbar.css';
-import { useAuth } from '../../contexts/AuthContext';  
-import ShareModal from '../Share/ShareModal'; // Assuming ShareModal is in the same directory
+import { useAuth } from '../../contexts/AuthContext';
+import ShareModal from '../Share/ShareModal';
+import { zoteroPickReference } from '../../utils/api';
+import bibtexParse from 'bibtex-parser-js';
 
-const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath }) => {
+const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath, referenceManager }) => {
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
   const [showHeadingMenu, setShowHeadingMenu] = useState(false);
   const [showTextColorMenu, setShowTextColorMenu] = useState(false);
@@ -24,6 +26,7 @@ const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath }) => 
   const [showCommentDialog, setShowCommentDialog] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isZoteroPicking, setIsZoteroPicking] = useState(false);
 
   const headingMenuRef = useRef(null);
   const textColorMenuRef = useRef(null);
@@ -239,6 +242,50 @@ const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath }) => 
     }).run();
   };
 
+  const handleCiteZotero = async () => {
+    if (!editor || !referenceManager || isZoteroPicking) return;
+    setIsZoteroPicking(true);
+    try {
+      const bibtex = await zoteroPickReference();
+      if (!bibtex || !bibtex.trim()) return; // user cancelled
+      const parsed = bibtexParse.toJSON(bibtex);
+      if (!parsed || parsed.length === 0) return;
+      for (const entry of parsed) {
+        const ref = {
+          ...entry,
+          citationKey: entry.citationKey || entry.key || '',
+          entryTags: entry.entryTags || {}
+        };
+        referenceManager.addReference(ref);
+      }
+      await referenceManager.save();
+      // Insert citation marks at cursor for each picked entry
+      for (const entry of parsed) {
+        const citationKey = entry.citationKey || entry.key || '';
+        editor.chain().focus().insertContent({
+          type: 'text',
+          marks: [{
+            type: 'citation',
+            attrs: {
+              citationKey,
+              isInBrackets: true,
+              referenceDetails: JSON.stringify(entry.entryTags || {}),
+              prefix: null,
+              suffix: null,
+              locator: null,
+            }
+          }],
+          text: `[@${citationKey}]`
+        }).run();
+      }
+    } catch (err) {
+      console.error('[Zotero CAYW] Error:', err);
+      alert(err.response?.data?.error || 'Could not reach Zotero. Make sure Zotero is open with Better BibTeX installed.');
+    } finally {
+      setIsZoteroPicking(false);
+    }
+  };
+
   return (
     <div className="editor-container">
       <div className="modern-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -347,6 +394,17 @@ const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath }) => 
           ) : (
             <FaToggleOff style={{ fontSize: '1.1em' }} />
           )}
+        </button>
+
+        {/* Cite from Zotero */}
+        <button
+          className="toolbar-btn"
+          onClick={handleCiteZotero}
+          disabled={isZoteroPicking}
+          title="Cite from Zotero (Better BibTeX)"
+        >
+          <FaBookOpen style={{ fontSize: '1.1em' }} />
+          <span style={{ fontSize: '0.75em', marginLeft: '3px' }}>{isZoteroPicking ? '…' : 'Cite'}</span>
         </button>
 
         {/* Share Button */}

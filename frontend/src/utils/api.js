@@ -168,6 +168,11 @@ export const acceptInvitation = async (invitationId) => {
   }
 };
 
+export const zoteroPickReference = async () => {
+  const response = await api.get('/api/bibliography/zotero-pick', { timeout: 130000 });
+  return response.data.bibtex;
+};
+
 export const handleSharedDocument = async (owner, repo, path) => {
   try {
     // Check for pending invitations
