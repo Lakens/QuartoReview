@@ -16,6 +16,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ShareModal from '../Share/ShareModal';
 import { zoteroPickReference } from '../../utils/api';
 import bibtexParse from 'bibtex-parser-js';
+import { formatApaInText } from '../../utils/apaUtils';
 
 const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath, referenceManager }) => {
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
@@ -259,24 +260,30 @@ const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath, refer
         referenceManager.addReference(ref);
       }
       await referenceManager.save();
-      // Insert citation marks at cursor for each picked entry
+      // Insert citation marks at cursor for each picked entry, followed by a
+      // plain space so the cursor exits the mark and typing continues normally.
       for (const entry of parsed) {
         const citationKey = entry.citationKey || entry.key || '';
-        editor.chain().focus().insertContent({
-          type: 'text',
-          marks: [{
-            type: 'citation',
-            attrs: {
-              citationKey,
-              isInBrackets: true,
-              referenceDetails: JSON.stringify(entry.entryTags || {}),
-              prefix: null,
-              suffix: null,
-              locator: null,
-            }
-          }],
-          text: `[@${citationKey}]`
-        }).run();
+        const displayText = formatApaInText(entry.entryTags || {});
+        editor.chain().focus()
+          .insertContent({
+            type: 'text',
+            marks: [{
+              type: 'citation',
+              attrs: {
+                citationKey,
+                isInBrackets: true,
+                referenceDetails: JSON.stringify(entry.entryTags || {}),
+                prefix: null,
+                suffix: null,
+                locator: null,
+              }
+            }],
+            text: displayText
+          })
+          .unsetMark('citation')
+          .insertContent({ type: 'text', text: ' ' })
+          .run();
       }
     } catch (err) {
       console.error('[Zotero CAYW] Error:', err);

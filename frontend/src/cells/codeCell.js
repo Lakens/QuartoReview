@@ -141,14 +141,32 @@ function CodeCellNodeView({ node, editor, getPos }) {
       try {
         const code = Array.isArray(source) ? source.join('') : (source || '');
 
-        // Close any canvas device left open from a previous run, then open a
-        // fresh one.  We do NOT call dev.off() after the user code because that
-        // sends a blank final canvasImage which would overwrite the real plot.
-        // invisible() suppresses the return values so they don't print as text.
-        const wrappedCode = `invisible(try(dev.off(), silent=TRUE))\ninvisible(webr::canvas())\n${code}`;
+        // Wrap user code so that:
+        //  1. Canvas device is reset for fresh plot capture.
+        //  2. The last expression's return value is captured via withVisible so
+        //     we can print it correctly.  kableExtra's print.kableExtra() calls
+        //     knitr::asis_output() which never writes to stdout — we must call
+        //     cat(as.character(x)) ourselves for kable objects.
+        //  3. evalq() evaluates in the global environment so user assignments
+        //     (tab <- ...) persist between chunk runs.
+        const wrappedCode = [
+          `invisible(try(dev.off(), silent=TRUE))`,
+          `invisible(webr::canvas())`,
+          `.webr_result <- withVisible(evalq({`,
+          code,
+          `}))`,
+          `if (.webr_result$visible) {`,
+          `  if (inherits(.webr_result$value, c("knitr_kable", "kableExtra"))) {`,
+          `    cat(as.character(.webr_result$value))`,
+          `  } else {`,
+          `    print(.webr_result$value)`,
+          `  }`,
+          `}`,
+          `rm(.webr_result)`,
+        ].join('\n');
 
         const { output } = await shelter.captureR(wrappedCode, {
-          withAutoprint: true,
+          withAutoprint: false,
           captureStreams: true,
           captureConditions: false,
         });

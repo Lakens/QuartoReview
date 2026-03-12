@@ -3,6 +3,7 @@ import katex from 'katex';
 import { tiptapDocToQmd } from '../../utils/quartoConversionUtils';
 import { parseQmd } from '../../utils/quartoUtils';
 import { markdownToHtml } from '../../utils/markdownConverter';
+import { formatApaInText, formatApaReference } from '../../utils/apaUtils';
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -12,8 +13,54 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function buildPreviewHtml(cells) {
+function renderCellOutput(output) {
+  if (output.output_type === 'stream') {
+    const text = Array.isArray(output.text) ? output.text.join('') : output.text;
+    if (output.name === 'stderr') return ''; // hide warnings/messages in preview
+    if (/<[a-zA-Z]/.test(text)) {
+      return `<div class="preview-output-html">${text}</div>`;
+    }
+    return `<pre class="preview-output-text">${escapeHtml(text)}</pre>`;
+  }
+  if (output.data?.['image/png']) {
+    return `<figure class="preview-output-figure"><img src="data:image/png;base64,${output.data['image/png']}" alt="R output" style="max-width:100%" /></figure>`;
+  }
+  if (output.data?.['text/html']) {
+    const html = Array.isArray(output.data['text/html']) ? output.data['text/html'].join('') : output.data['text/html'];
+    return `<div class="preview-output-html">${html}</div>`;
+  }
+  if (output.data?.['text/plain']) {
+    const text = Array.isArray(output.data['text/plain']) ? output.data['text/plain'].join('') : output.data['text/plain'];
+    return `<pre class="preview-output-text">${escapeHtml(text)}</pre>`;
+  }
+  return '';
+}
+
+/**
+ * Replace [@key] and [@key1; @key2] citation patterns in HTML with APA in-text citations.
+ * Returns { html, citedKeys } where citedKeys is the ordered set of cited keys.
+ */
+function applyCitations(html, refMap) {
+  const citedKeys = [];
+  const replaced = html.replace(/\[@([^\]]+)\]/g, (match, inner) => {
+    const keys = inner.split(';').map(k => k.trim().replace(/^@/, ''));
+    const parts = keys.map(key => {
+      const entry = refMap[key];
+      if (!entry) return `(${key})`;
+      if (!citedKeys.includes(key)) citedKeys.push(key);
+      return formatApaInText(entry);
+    });
+    // Merge multi-key: (Smith, 2020; Jones, 2021) — strip outer parens and rejoin
+    if (parts.length === 1) return parts[0];
+    const inner2 = parts.map(p => p.replace(/^\(|\)$/g, '')).join('; ');
+    return `(${inner2})`;
+  });
+  return { html: replaced, citedKeys };
+}
+
+function buildPreviewHtml(cells, codeCellOutputs, refMap) {
   let html = '';
+  let codeIndex = 0;
   for (const cell of cells) {
     if (cell.type === 'raw' && cell.isYamlHeader) {
       const meta = cell.parsedYaml || {};
@@ -33,17 +80,35 @@ function buildPreviewHtml(cells) {
     } else if (cell.type === 'markdown') {
       html += markdownToHtml(cell.content);
     } else if (cell.type === 'code') {
-      const lang = cell.language || 'r';
-      const source = Array.isArray(cell.source)
-        ? cell.source.join('')
-        : (cell.source || '');
-      html += `<div class="preview-code-block"><div class="preview-code-label">${escapeHtml(lang)}</div><pre><code>${escapeHtml(source)}</code></pre></div>`;
+      const outputs = codeCellOutputs[codeIndex] || [];
+      codeIndex++;
+      const outputHtml = outputs.map(renderCellOutput).join('');
+      if (outputHtml) {
+        html += `<div class="preview-cell-output">${outputHtml}</div>`;
+      }
     }
   }
-  return html;
+
+  // Replace [@key] citation patterns and collect cited keys
+  const { html: withCitations, citedKeys } = applyCitations(html, refMap);
+
+  // Append APA reference list if any citations were found
+  let refHtml = '';
+  if (citedKeys.length > 0) {
+    refHtml = '<hr class="preview-refs-divider"><h2 class="preview-refs-heading">References</h2><div class="preview-refs-list">';
+    for (const key of citedKeys) {
+      const entry = refMap[key];
+      if (entry) {
+        refHtml += `<p class="preview-ref-entry">${formatApaReference(entry)}</p>`;
+      }
+    }
+    refHtml += '</div>';
+  }
+
+  return withCitations + refHtml;
 }
 
-export function PreviewPane({ editor }) {
+export function PreviewPane({ editor, references }) {
   const containerRef = useRef(null);
   const [html, setHtml] = useState('');
 
@@ -54,7 +119,24 @@ export function PreviewPane({ editor }) {
       try {
         const qmd = tiptapDocToQmd(editor);
         const { cells } = parseQmd(qmd);
-        setHtml(buildPreviewHtml(cells));
+
+        // Collect stored outputs from codeCell nodes in document order.
+        const codeCellOutputs = [];
+        editor.state.doc.descendants(node => {
+          if (node.type.name === 'codeCell') {
+            codeCellOutputs.push(node.attrs.outputs || []);
+          }
+        });
+
+        // Build a map from citationKey → entryTags for fast lookup
+        const refMap = {};
+        if (references) {
+          for (const ref of references) {
+            if (ref.citationKey) refMap[ref.citationKey] = ref.entryTags || {};
+          }
+        }
+
+        setHtml(buildPreviewHtml(cells, codeCellOutputs, refMap));
       } catch (_) {
         // silently ignore preview errors — the editor content may be mid-edit
       }
@@ -67,13 +149,13 @@ export function PreviewPane({ editor }) {
     };
 
     editor.on('update', handler);
-    doUpdate(); // render current content immediately on mount
+    doUpdate();
 
     return () => {
       editor.off('update', handler);
       clearTimeout(timeout);
     };
-  }, [editor]);
+  }, [editor, references]);
 
   // After React sets the HTML, post-process math tokens with KaTeX
   useEffect(() => {

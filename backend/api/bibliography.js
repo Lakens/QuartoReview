@@ -107,22 +107,88 @@ async function saveBibliography(req, res) {
   }
 }
 
-async function zoteroPickReference(req, res) {
-  // Proxy to Better BibTeX CAYW endpoint — blocks until user picks in Zotero
-  const bbtUrl = 'http://localhost:23119/better-bibtex/cayw?format=bibtex';
-  try {
-    const bibtex = await new Promise((resolve, reject) => {
-      const request = http.get(bbtUrl, { timeout: 120000 }, (response) => {
-        let data = '';
-        response.on('data', chunk => { data += chunk; });
-        response.on('end', () => resolve(data));
-      });
-      request.on('error', reject);
-      request.on('timeout', () => { request.destroy(); reject(new Error('Zotero request timed out')); });
+function bbtRequest({ path, method = 'GET', body = null, timeoutMs = 120000 }) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: '127.0.0.1',
+      port: 23119,
+      path,
+      method,
+      timeout: timeoutMs,
+      headers: {
+        'X-Zotero-Connector-API-Version': '2',
+        'Content-Type': 'application/json',
+        ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {}),
+      },
+    };
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => resolve({ statusCode: res.statusCode, body: data }));
     });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Zotero request timed out')); });
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+async function zoteroPickReference(req, res) {
+  try {
+    // Step 1: open Zotero picker — returns LaTeX like \autocite{key1,key2}
+    const cayw = await bbtRequest({ path: '/better-bibtex/cayw?format=biblatex' });
+    if (cayw.statusCode !== 200) {
+      console.error('[Zotero CAYW] status', cayw.statusCode, cayw.body.slice(0, 200));
+      return res.status(503).json({ error: cayw.body.trim() || 'Better BibTeX CAYW failed.' });
+    }
+
+    // Extract citation keys from \autocite{key1,key2} or \cite{key}
+    const keys = [];
+    for (const m of cayw.body.matchAll(/\\[a-zA-Z]*cite[a-zA-Z]*\{([^}]+)\}/g)) {
+      keys.push(...m[1].split(',').map(k => k.trim()).filter(Boolean));
+    }
+    if (keys.length === 0) {
+      return res.status(503).json({ error: 'No citation keys found in: ' + cayw.body.trim() });
+    }
+
+    // Step 2: fetch full BibTeX entries via JSON-RPC
+    // Better BibTeX translator ID: ca65189f-8815-4afe-8c8b-6e0598acf4e4
+    const rpcBody = JSON.stringify({
+      jsonrpc: '2.0', method: 'item.export',
+      params: { citekeys: keys, translator: 'Better BibTeX' }
+    });
+    let rpc;
+    try {
+      rpc = await bbtRequest({ path: '/better-bibtex/json-rpc', method: 'POST', body: rpcBody, timeoutMs: 30000 });
+    } catch (rpcErr) {
+      console.error('[Zotero RPC] request failed:', rpcErr.message);
+      return res.status(503).json({ error: 'JSON-RPC request to Zotero failed: ' + rpcErr.message });
+    }
+
+    console.log('[Zotero RPC] status:', rpc.statusCode, 'body:', rpc.body.slice(0, 300));
+
+    let rpcResult;
+    try {
+      rpcResult = JSON.parse(rpc.body);
+    } catch (parseErr) {
+      console.error('[Zotero RPC] JSON parse failed, raw body:', rpc.body.slice(0, 300));
+      return res.status(503).json({ error: 'Unexpected response from Zotero: ' + rpc.body.slice(0, 100) });
+    }
+
+    if (rpcResult?.error) {
+      console.error('[Zotero RPC] JSON-RPC error:', rpcResult.error);
+      return res.status(503).json({ error: 'Zotero RPC error: ' + JSON.stringify(rpcResult.error) });
+    }
+
+    const bibtex = rpcResult?.result;
+    if (!bibtex || !bibtex.trim().startsWith('@')) {
+      console.error('[Zotero RPC] unexpected result:', rpc.body.slice(0, 300));
+      return res.status(503).json({ error: 'Could not retrieve BibTeX entry from Zotero.' });
+    }
+
     res.json({ bibtex });
   } catch (err) {
-    console.error('[Zotero CAYW] Error:', err.message);
+    console.error('[Zotero CAYW] Error:', err.message, err.stack);
     res.status(503).json({ error: 'Could not reach Zotero. Make sure Zotero is open with Better BibTeX installed.' });
   }
 }

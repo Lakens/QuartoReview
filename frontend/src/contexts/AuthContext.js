@@ -26,8 +26,8 @@ export const AuthProvider = ({ children }) => {
         const userData = await fetchUser();
         if (userData) {
           setUser(userData);
+          setIsAuthenticated(true);
         }
-        setIsAuthenticated(true);
       } catch (err) {
         console.error('Failed to load user:', err);
       } finally {

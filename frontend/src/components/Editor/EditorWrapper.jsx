@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { subscribePackageStatus } from '../../utils/webRSingleton';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -82,6 +83,7 @@ const EditorWrapper = ({
   extensions,
   references,
 }) => {
+  const { isAuthenticated } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [notebooks, setNotebooks] = useState([]);
@@ -235,7 +237,7 @@ const EditorWrapper = ({
       <header className="app-header">
         <div className="header-content">
           <h1 className="header-title-R">R</h1> <h1 className="header-title">esolve</h1> <h2>(Beta)</h2>
-          
+
             <div className="file-controls">
               <select
                 value={selectedRepo?.fullName || ''}
@@ -286,23 +288,29 @@ const EditorWrapper = ({
       </header>
 
       <main className="app-main flex-grow overflow-y-auto">
-        <div className="content-container">
-          <div className="editor-with-sidebar">
-            <div className="editor-container">
-              {editor?.isEditable && editor?.view && <EditorBubbleMenuManager editor={editor} />}
-              <div className="editor-main">
-                <div className="editor-content-container">
-                  <EditorContent editor={editor} />
-                  <div className="references-container">
-                    <ReferencesList references={references || referenceManager?.getReferences()} />
+        {!isAuthenticated ? (
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '4rem' }}>
+            <LoginButton />
+          </div>
+        ) : (
+          <div className="content-container">
+            <div className="editor-with-sidebar">
+              <div className="editor-container">
+                {editor?.isEditable && editor?.view && <EditorBubbleMenuManager editor={editor} />}
+                <div className="editor-main">
+                  <div className="editor-content-container">
+                    <EditorContent editor={editor} />
+                    <div className="references-container">
+                      <ReferencesList references={references || referenceManager?.getReferences()} />
+                    </div>
                   </div>
                 </div>
               </div>
+              {showPreview && <PreviewPane editor={editor} references={references || referenceManager?.getReferences()} />}
+              {!showPreview && editor && <CommentsSidebar editor={editor} />}
             </div>
-            {showPreview && <PreviewPane editor={editor} />}
-            {!showPreview && editor && <CommentsSidebar editor={editor} />}
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

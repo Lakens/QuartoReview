@@ -722,6 +722,60 @@
   color: #2d2d2d;
 }
 
+/* Code cell output in preview */
+.preview-cell-output {
+  margin: 1em 0;
+}
+
+.preview-output-figure {
+  margin: 0.5em 0;
+  text-align: center;
+}
+
+.preview-output-figure img {
+  max-width: 100%;
+  height: auto;
+}
+
+.preview-output-html {
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+
+.preview-output-text {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0.75em 1em;
+  margin: 0.5em 0;
+  font-size: 0.85em;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.preview-refs-divider {
+  margin: 2em 0 1em;
+  border: none;
+  border-top: 1px solid #ccc;
+}
+
+.preview-refs-heading {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-bottom: 0.75em;
+}
+
+.preview-refs-list {
+  font-size: 0.9em;
+}
+
+.preview-ref-entry {
+  margin: 0.4em 0;
+  padding-left: 2em;
+  text-indent: -2em;
+  line-height: 1.5;
+}
+
 /* Active state for the Preview toggle button */
 .glass-button--active {
   background-color: #dbeeff;
