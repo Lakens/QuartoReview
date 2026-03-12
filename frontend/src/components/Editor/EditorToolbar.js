@@ -95,6 +95,20 @@ const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath }) => 
     }
   };
 
+  // Insert a new empty R code chunk at the cursor
+  const handleInsertRChunk = () => {
+    editor.chain().focus().insertContent({
+      type: 'codeCell',
+      attrs: {
+        source: '# R code here\n',
+        outputs: [],
+        executionCount: null,
+        metadata: { language: 'r' },
+        folded: false,
+      }
+    }).run();
+  };
+
   // Table handlers
   const handleInsertTable = () => {
     editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
@@ -294,6 +308,15 @@ const EditorToolbar = ({ editor, onToggleComments, selectedRepo, filePath }) => 
         {/* Lists */}
         <button className="toolbar-btn" onClick={handleBulletList} title="Bulleted List"><FaListUl style={{ fontSize: '1.1em' }} /></button>
         <button className="toolbar-btn" onClick={handleOrderedList} title="Numbered List"><FaListOl style={{ fontSize: '1.1em' }} /></button>
+
+        {/* Insert R code chunk */}
+        <button className="toolbar-btn" onClick={handleInsertRChunk} title="Insert R code chunk">
+          <BiCodeBlock style={{ fontSize: '1.1em' }} />
+          <span style={{ fontSize: '0.75em', marginLeft: '3px' }}>R</span>
+        </button>
+
+        {/* Separator */}
+        <div style={{ width:'1px', height:'24px', background:'#ddd', margin:'0 0.5rem' }}></div>
 
         {/* Table */}
         <div className="table-controls" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
