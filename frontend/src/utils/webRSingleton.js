@@ -13,6 +13,9 @@
  *
  * Call installPackagesForQmd(qmdContent) after loading a file to install exactly
  * the packages referenced by library()/require() calls in that document.
+ *
+ * Call syncFilesForQmd(qmdContent, qmdFilePath, repository, fetchRawFileFn)
+ * to mirror data files referenced in R chunks into WebR's virtual filesystem.
  */
 
 // ── Status / subscriber system ────────────────────────────────────────────────
@@ -37,6 +40,25 @@ export function subscribePackageStatus(fn) {
 /** Synchronous snapshot of the current package status. */
 export function getPackageStatus() {
   return _packageStatus;
+}
+
+// ── File-sync status / subscriber system ─────────────────────────────────────
+// fileStatus shape: { phase: 'idle'|'syncing'|'done'|'error',
+//                     current: string|null, synced: number, total: number,
+//                     skipped: string[] }
+let _fileStatus = { phase: 'idle', current: null, synced: 0, total: 0, skipped: [] };
+const _fileSubscribers = new Set();
+
+function _setFileStatus(update) {
+  _fileStatus = { ..._fileStatus, ...update };
+  _fileSubscribers.forEach(fn => fn(_fileStatus));
+}
+
+/** Subscribe to file-sync status changes.  Returns an unsubscribe fn. */
+export function subscribeFileStatus(fn) {
+  _fileSubscribers.add(fn);
+  fn(_fileStatus);
+  return () => _fileSubscribers.delete(fn);
 }
 
 // ── QMD package extraction ────────────────────────────────────────────────────
@@ -132,7 +154,7 @@ export async function installPackagesForQmd(qmdContent) {
   const webR = await getWebR();
   const errors = [];
 
-  _setPackageStatus({ phase: 'installing', index: 0, total: packages.length, errors: [] });
+  _setPackageStatus({ phase: 'installing', index: 0, total: packages.length, errors: [], current: null });
 
   for (let i = 0; i < packages.length; i++) {
     const pkg = packages[i];
@@ -143,7 +165,9 @@ export async function installPackagesForQmd(qmdContent) {
       // installPackages() only emits an R *warning* when a binary isn't found
       // — it never throws.  Verify the package is actually in the library.
       await webR.evalRVoid(`find.package("${pkg}")`);
-      console.log(`[WebR] ${pkg} installed.`);
+      // Load the package into the R session so it's ready to use immediately.
+      await webR.evalRVoid(`library("${pkg}")`, { withAutoprint: false });
+      console.log(`[WebR] ${pkg} installed and loaded.`);
     } catch (err) {
       console.warn(`[WebR] ${pkg} not available for WebAssembly.`);
       errors.push({ pkg, message: 'Not available for WebAssembly' });
@@ -172,6 +196,178 @@ export function getWebRStatus() {
   if (!_instance) return 'loading';
   return 'ready';
 }
+
+// ── QMD file-path extraction ──────────────────────────────────────────────────
+
+// Common R functions that take a file path as their first string argument.
+const FILE_READ_FN_PATTERN = [
+  'read\\.csv', 'read\\.csv2', 'read\\.table', 'read\\.delim', 'read\\.fwf',
+  'read_csv', 'read_csv2', 'read_tsv', 'read_delim', 'read_delim2',
+  'read_excel', 'read_xlsx', 'read_xls',
+  'readRDS', 'load',
+  'source',
+  'fread',
+  'read_sav', 'read_dta', 'read_sas', 'read_spss',
+  'readLines', 'scan',
+].join('|');
+
+const FILE_PATH_RE = new RegExp(
+  `(?:${FILE_READ_FN_PATTERN})\\s*\\(\\s*["']([^"']+)["']`,
+  'g'
+);
+
+/**
+ * Parse a QMD string and return the unique set of relative file paths
+ * referenced by common file-reading functions inside R code chunks.
+ * Absolute paths and URLs are excluded — only relative paths are returned.
+ */
+export function extractFilePathsFromQmd(qmdContent) {
+  const paths = new Set();
+  if (!qmdContent) return paths;
+
+  const chunkRegex = /^```\{r[^}]*\}([\s\S]*?)^```/gm;
+  let chunkMatch;
+  while ((chunkMatch = chunkRegex.exec(qmdContent)) !== null) {
+    const body = chunkMatch[1];
+    const re = new RegExp(FILE_PATH_RE.source, 'g');
+    let m;
+    while ((m = re.exec(body)) !== null) {
+      const p = m[1];
+      // Skip URLs and absolute paths — we can only serve relative repo paths
+      if (!p.startsWith('http://') && !p.startsWith('https://') && !p.startsWith('/')) {
+        paths.add(p);
+      }
+    }
+  }
+  return paths;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve a relative file path against the directory containing the QMD file,
+ * producing a normalised repo-relative path.
+ *
+ * Example: qmdFilePath = "chapters/ch1.qmd", relativePath = "../data/file.csv"
+ *          → "data/file.csv"
+ */
+function resolveRepoPath(qmdFilePath, relativePath) {
+  const qmdDir = qmdFilePath.includes('/')
+    ? qmdFilePath.substring(0, qmdFilePath.lastIndexOf('/'))
+    : '';
+  const combined = qmdDir ? `${qmdDir}/${relativePath}` : relativePath;
+  const parts = combined.split('/');
+  const resolved = [];
+  for (const part of parts) {
+    if (part === '..') resolved.pop();
+    else if (part !== '.') resolved.push(part);
+  }
+  return resolved.join('/');
+}
+
+/** Recursively create directories in WebR's virtual filesystem. */
+async function mkdirp(webR, dirPath) {
+  const parts = dirPath.split('/').filter(Boolean);
+  let current = '';
+  for (const part of parts) {
+    current += '/' + part;
+    try { await webR.FS.mkdir(current); } catch (_) { /* already exists — fine */ }
+  }
+}
+
+/** Decode a base64 string to a Uint8Array (for binary-safe FS writes). */
+function base64ToUint8Array(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+// ── File sync ─────────────────────────────────────────────────────────────────
+
+/**
+ * Mirror data files referenced in R chunks into WebR's virtual filesystem so
+ * that read_csv(), read_excel(), load(), source(), etc. work without changes.
+ *
+ * Steps:
+ *  1. Scan the QMD for relative file path literals in file-reading calls.
+ *  2. Set WebR's working directory to match the QMD's location in the repo.
+ *  3. For each path: resolve it repo-relative, fetch via the backend, write
+ *     into WebR's FS at the corresponding absolute path under /home/web_user/.
+ *
+ * @param {string}   qmdContent   - Raw QMD text.
+ * @param {string}   qmdFilePath  - Path of the QMD within the repo (e.g. "chapters/ch1.qmd").
+ * @param {string}   repository   - "owner/repo" string.
+ * @param {Function} fetchRawFileFn - async (path, repository) → { content: base64, size }
+ */
+export async function syncFilesForQmd(qmdContent, qmdFilePath, repository, fetchRawFileFn) {
+  const relativePaths = [...extractFilePathsFromQmd(qmdContent)];
+
+  const webR = await getWebR();
+
+  // Set R's working directory to the QMD's directory within the virtual FS,
+  // so that relative paths in code (../data/file.csv) resolve correctly.
+  const qmdDir = qmdFilePath && qmdFilePath.includes('/')
+    ? qmdFilePath.substring(0, qmdFilePath.lastIndexOf('/'))
+    : '';
+  const webRWorkDir = `/home/web_user${qmdDir ? '/' + qmdDir : ''}`;
+  await mkdirp(webR, webRWorkDir);
+  await webR.evalRVoid(`setwd("${webRWorkDir}")`);
+  console.log(`[WebR] Working directory set to ${webRWorkDir}`);
+
+  if (relativePaths.length === 0) {
+    _setFileStatus({ phase: 'done', current: null, synced: 0, total: 0, skipped: [] });
+    return;
+  }
+
+  if (!repository) {
+    console.warn('[WebR] syncFilesForQmd: no repository provided, skipping file sync');
+    return;
+  }
+
+  _setFileStatus({ phase: 'syncing', current: null, synced: 0, total: relativePaths.length, skipped: [] });
+
+  const skipped = [];
+
+  for (let i = 0; i < relativePaths.length; i++) {
+    const relPath = relativePaths[i];
+    const repoPath = resolveRepoPath(qmdFilePath || '', relPath);
+    const fsPath = `/home/web_user/${repoPath}`;
+
+    _setFileStatus({ current: relPath, synced: i });
+    console.log(`[WebR] Fetching ${repoPath} from GitHub…`);
+
+    try {
+      const { content } = await fetchRawFileFn(repoPath, repository);
+      const bytes = base64ToUint8Array(content);
+
+      // Ensure parent directory exists
+      const parentDir = fsPath.includes('/') ? fsPath.substring(0, fsPath.lastIndexOf('/')) : '/home/web_user';
+      await mkdirp(webR, parentDir);
+
+      await webR.FS.writeFile(fsPath, bytes);
+      console.log(`[WebR] Wrote ${fsPath} (${bytes.length} bytes)`);
+    } catch (err) {
+      const reason = err?.response?.status === 404
+        ? 'not found in repository'
+        : err?.response?.status === 413
+          ? 'file too large (> 5 MB)'
+          : err?.message || 'fetch failed';
+      console.warn(`[WebR] Skipping ${repoPath}: ${reason}`);
+      skipped.push(relPath);
+    }
+  }
+
+  _setFileStatus({
+    phase: 'done',
+    current: null,
+    synced: relativePaths.length - skipped.length,
+    total: relativePaths.length,
+    skipped,
+  });
+}
+
+// ── Image utility ─────────────────────────────────────────────────────────────
 
 /**
  * Convert an ImageBitmap (returned by WebR canvas messages) to a base64-

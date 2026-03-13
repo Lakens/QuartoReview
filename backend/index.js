@@ -31,6 +31,7 @@ const bibliographyRoute = await import('./api/bibliography.js');
 const collaborationRoute = await import('./api/collaboration.js');
 const fileHistoryRoute = await import('./api/fileHistory.js');
 const fileAtCommitRoute = await import('./api/fileAtCommit.js');
+const fetchRawFileRoute = await import('./api/fetchRawFile.js');
 
 const app = express();
 
@@ -144,6 +145,7 @@ app.use(createRateLimiter());
 // Protected routes that require session authentication
 const protectedRoutes = [
     '/api/fetchFile',
+    '/api/fetchRawFile',
     '/api/saveFile',
     '/api/repositories',
     '/api/listNotebooks',
@@ -178,6 +180,7 @@ app.use('/api/bibliography', bibliographyRoute.default);
 app.use('/api/collaboration', collaborationRoute.default);
 app.use('/api/fileHistory', fileHistoryRoute.default);
 app.use('/api/fileAtCommit', fileAtCommitRoute.default);
+app.use('/api/fetchRawFile', fetchRawFileRoute.default);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

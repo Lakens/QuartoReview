@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaSun, FaMoon, FaEdit, FaShare } from 'react-icons/fa';
 import ShareModal from '../Share/ShareModal';
 import { useAuth } from '../../contexts/AuthContext';
-import { subscribePackageStatus, installPackagesForQmd } from '../../utils/webRSingleton';
+import { subscribePackageStatus, subscribeFileStatus, installPackagesForQmd, syncFilesForQmd } from '../../utils/webRSingleton';
+import { fetchNotebooksInRepo, fetchRawFile } from '../../utils/api';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Mathematics from 'tiptap-math';
@@ -24,7 +25,6 @@ import EditorToolbar from './EditorToolbar';
 import { CommentsSidebar } from '../Comments/CommentsSidebar';
 import { PreviewPane } from './PreviewPane';
 import LoginButton from '../Auth/LoginButton';
-import { fetchNotebooksInRepo } from '../../utils/api';
 import InlineMath from '../../utils/InlineMath/inlineMath';
 import { formatApaReference } from '../../utils/apaUtils';
 import { LanguageToolExtension } from './LanguageToolExtension';
@@ -75,6 +75,9 @@ const EditorWrapper = ({
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
   const [commentMarkKey, setCommentMarkKey] = useState(0);
   const [pkgStatus, setPkgStatus] = useState({ phase: 'idle', current: null, index: 0, total: 0 });
+  const [fileStatus, setFileStatus] = useState({ phase: 'idle', current: null, synced: 0, total: 0, skipped: [] });
+  const [pkgBannerDismissed, setPkgBannerDismissed] = useState(false);
+  const [fileBannerDismissed, setFileBannerDismissed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
@@ -84,6 +87,10 @@ const EditorWrapper = ({
 
   useEffect(() => {
     return subscribePackageStatus(setPkgStatus);
+  }, []);
+
+  useEffect(() => {
+    return subscribeFileStatus(setFileStatus);
   }, []);
 
   const handleCommentMarkUpdate = () => {
@@ -266,8 +273,16 @@ const EditorWrapper = ({
           setError(err.message);
         }
       });
-      // Install exactly the packages this document uses
-      installPackagesForQmd(qmdContent);
+      // Reset any previously dismissed banners for the new file
+      setPkgBannerDismissed(false);
+      setFileBannerDismissed(false);
+      // Install + load packages, then sync data files into WebR's virtual FS.
+      // Run sequentially: package installation uses evalRVoid internally, so
+      // completing it first avoids concurrent R evaluations.
+      const repo = selectedRepo ? `${selectedRepo.owner.login}/${selectedRepo.name}` : null;
+      installPackagesForQmd(qmdContent).then(() => {
+        syncFilesForQmd(qmdContent, filePath, repo, fetchRawFile);
+      });
     }
   }, [editor, qmdContent]);
 
@@ -309,15 +324,47 @@ const EditorWrapper = ({
           {saveMessage}
         </div>
       )}
-      {(pkgStatus.phase === 'installing' || pkgStatus.phase === 'error') && (
-        <div className={`pkg-install-banner${pkgStatus.phase === 'error' ? ' pkg-install-banner--error' : ''}`}>
-          {pkgStatus.phase === 'installing'
-            ? `Installing R packages… ${pkgStatus.current} (${pkgStatus.index}/${pkgStatus.total})`
-            : pkgStatus.errors?.length > 0
-              ? `Could not install: ${pkgStatus.errors.map(e => e.pkg).join(', ')} — not available for WebAssembly. Other packages were installed.`
+      <div className="banner-stack">
+        {/* Progress banners — shown while active, not dismissable */}
+        {pkgStatus.phase === 'installing' && (
+          <div className="pkg-install-banner">
+            {`Installing R packages… ${pkgStatus.current} (${pkgStatus.index}/${pkgStatus.total})`}
+          </div>
+        )}
+        {fileStatus.phase === 'syncing' && (
+          <div className="pkg-install-banner">
+            {`Fetching data files… ${fileStatus.current || ''} (${fileStatus.synced + 1}/${fileStatus.total})`}
+          </div>
+        )}
+        {/* Result banners — dismissable */}
+        {pkgStatus.phase === 'done' && !pkgBannerDismissed && (
+          <div className="pkg-install-banner pkg-install-banner--success">
+            R packages installed and loaded.
+            <button className="pkg-install-banner__close" onClick={() => setPkgBannerDismissed(true)} title="Dismiss">✕</button>
+          </div>
+        )}
+        {pkgStatus.phase === 'error' && !pkgBannerDismissed && (
+          <div className="pkg-install-banner pkg-install-banner--error">
+            {pkgStatus.errors?.length > 0
+              ? `Could not install: ${pkgStatus.errors.map(e => e.pkg).join(', ')} — not available for WebAssembly.`
               : 'R package installation failed — check browser console (F12) for details'}
-        </div>
-      )}
+            <button className="pkg-install-banner__close" onClick={() => setPkgBannerDismissed(true)} title="Dismiss">✕</button>
+          </div>
+        )}
+        {fileStatus.phase === 'done' && fileStatus.total > 0 && !fileBannerDismissed && (
+          fileStatus.skipped.length > 0 ? (
+            <div className="pkg-install-banner pkg-install-banner--error">
+              {`Data files not found in repository: ${fileStatus.skipped.join(', ')}`}
+              <button className="pkg-install-banner__close" onClick={() => setFileBannerDismissed(true)} title="Dismiss">✕</button>
+            </div>
+          ) : (
+            <div className="pkg-install-banner pkg-install-banner--success">
+              {`All ${fileStatus.total} data file${fileStatus.total !== 1 ? 's' : ''} loaded.`}
+              <button className="pkg-install-banner__close" onClick={() => setFileBannerDismissed(true)} title="Dismiss">✕</button>
+            </div>
+          )
+        )}
+      </div>
       <header className="app-header">
         <div className="header-top">
           <img src="/logo.png" alt="QuartoReview" className="app-logo" />

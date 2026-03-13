@@ -119,7 +119,13 @@ The script opens two windows (backend and frontend) and opens your browser to `h
 
 R runs entirely in your browser — no local R installation needed.
 
-When you open the app, it automatically installs `tidyverse`, `kableExtra`, and `palmerpenguins` in the background. A blue banner in the bottom-right corner shows the progress. **This takes a few minutes on every page load** — R code will not run until the banner disappears.
+When you open a `.qmd` file, the app automatically:
+
+1. Scans the document for `library()` and `require()` calls and installs those packages into the in-browser R environment
+2. Loads each installed package into the R session so it is immediately available
+3. Scans R chunks for file-reading calls (`read_csv()`, `read_excel()`, `load()`, `source()`, etc.) and fetches the referenced data files from your GitHub repository into WebR's virtual filesystem
+
+A blue banner shows progress for each step. **Package installation takes a few minutes on first use** — R code will not run until the banner disappears. Data files are fetched in the background after packages are ready.
 
 Once ready:
 
@@ -142,6 +148,9 @@ Once ready:
 
 **R code gives "there is no package called …"**
 → Wait for the blue "Installing R packages…" banner to disappear before running code. If the banner is gone and the error persists, reload the page.
+
+**R code gives "cannot open file '…': No such file or directory"**
+→ The data file could not be fetched from your repository. Check that the path in your R code is correct relative to the `.qmd` file and that the file exists in the repository. Files larger than 5 MB cannot be loaded. If the path is constructed dynamically (e.g. `paste0(dir, file)`) it cannot be detected automatically — rename it to a literal string instead.
 
 **R chunks show "Starting R…" and never finish**
 → Wait up to 60 seconds on first use. If it still hangs, open the browser DevTools (F12 → Console) and look for `[WebR]` log lines.
@@ -189,7 +198,8 @@ The following features were added in this fork by Daniel Lakens:
 - **QMD format support** — `.qmd` (Quarto Markdown) as the primary file format, including full round-trip conversion between QMD and the TipTap document model, and persistence of inline comments as HTML spans within QMD files
 - **Vite migration** — migrated the frontend from Create React App to Vite
 - **Live preview pane** — side-by-side rendered prose preview
-- **WebR in-browser R execution** — run R code chunks directly in the browser via WebAssembly, with `tidyverse`, `kableExtra`, and `palmerpenguins` pre-loaded; includes R plot and table rendering and automatic package installation
+- **WebR in-browser R execution** — run R code chunks directly in the browser via WebAssembly; packages referenced by `library()`/`require()` in the document are automatically installed and loaded when the file opens; R plots and tables are rendered inline; a per-chunk warning is shown when a required package is unavailable for WebAssembly
+- **GitHub data file sync** — data files referenced by `read_csv()`, `read_excel()`, `load()`, `source()`, and other file-reading functions are automatically fetched from the GitHub repository and written into WebR's virtual filesystem, so relative paths in R code work without any modification; R's working directory is set to match the QMD file's location in the repository
 - **Zotero citation picker** — integration with Zotero's Better BibTeX "Cite as You Write" API, with APA in-text and reference list formatting
 - **LanguageTool grammar and spell checking** — real-time grammar and spelling feedback via LanguageTool, with inline highlighting and one-click corrections
 - **Diff viewer** — compare any saved version against the current document ("Changes since this version") or view what changed within a specific commit ("Changes in this version"), with word-level highlighting

@@ -210,6 +210,26 @@ body {
   color: var(--color-danger);
 }
 
+.pkg-install-banner--success {
+  background: var(--color-success-bg);
+  border-color: var(--color-success-border);
+  color: var(--color-success);
+}
+
+.pkg-install-banner__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  margin-left: 0.75rem;
+  opacity: 0.6;
+  padding: 0 2px;
+  color: inherit;
+  vertical-align: middle;
+}
+.pkg-install-banner__close:hover { opacity: 1; }
+
 /* ── Main content ───────────────────────────────────────────────────────── */
 
 .app-main {

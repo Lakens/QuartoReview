@@ -525,23 +525,49 @@
   z-index: 1000;
 }
 
-.pkg-install-banner {
-  font-family: var(--ui-font);
+.banner-stack {
   position: fixed;
   bottom: 1rem;
   right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1000;
+  align-items: flex-end;
+}
+
+.pkg-install-banner {
+  font-family: var(--ui-font);
   padding: 0.5rem 1rem;
   border-radius: 4px;
   background: #0073e6;
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   font-size: 0.85rem;
-  z-index: 1000;
+  max-width: 360px;
 }
 
 .pkg-install-banner--error {
   background: #cc0000;
 }
+
+.pkg-install-banner--success {
+  background: #2E9E5B;
+}
+
+.pkg-install-banner__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  margin-left: 0.75rem;
+  opacity: 0.7;
+  padding: 0 2px;
+  color: inherit;
+  vertical-align: middle;
+}
+.pkg-install-banner__close:hover { opacity: 1; }
 
 .citation {
   background-color: #f0f0f0;

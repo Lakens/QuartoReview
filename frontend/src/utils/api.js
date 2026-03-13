@@ -120,6 +120,13 @@ export const fetchNotebooksInRepo = async (repository) => {
   }
 };
 
+// Fetch raw (binary-safe) file content from a GitHub repository as a base64 string.
+// Used to populate WebR's virtual filesystem with data files referenced in R chunks.
+export const fetchRawFile = async (path, repository) => {
+  const response = await api.get('/api/fetchRawFile', { params: { path, repository } });
+  return response.data; // { content: base64String, size: number }
+};
+
 export const saveNotebook = async (content, path, repository, commitMessage) => {
   try {
     const response = await api.post('/api/saveFile', { content, path, repository, commitMessage });
