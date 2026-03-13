@@ -14,40 +14,37 @@ import { getInlineRCache } from '../../utils/webRSingleton';
 
 export const INLINE_R_KEY = new PluginKey('inlineR');
 
-// Matches `r expr` — the backtick-r-space pattern used by Quarto / R Markdown
-const INLINE_R_RE = /`r\s+([^`]+?)`/g;
-
 function buildDecorations(doc) {
   const cache = getInlineRCache();
   const decorations = [];
 
   doc.descendants((node, pos) => {
+    // TipTap stores `r expr` as a text node with a 'code' mark (backticks are stripped).
     if (!node.isText) return;
-    const text = node.text;
-    INLINE_R_RE.lastIndex = 0;
-    let m;
-    while ((m = INLINE_R_RE.exec(text)) !== null) {
-      const from = pos + m.index;
-      const to = from + m[0].length;
-      const expr = m[1].trim();
-      const cached = cache.get(expr);
+    if (!node.marks.some(m => m.type.name === 'code')) return;
+    const match = node.text.match(/^r\s+(.+)$/);
+    if (!match) return;
 
-      let cls = 'inline-r-expr';
-      let title;
-      if (!cached) {
-        title = 'Inline R — click "Render R" in the toolbar to evaluate';
-      } else if (cached.error) {
-        cls += ' inline-r-expr--error';
-        title = `Error: ${cached.error}`;
-      } else {
-        cls += ' inline-r-expr--evaluated';
-        title = `= ${cached.value}`;
-      }
+    const from = pos;
+    const to = pos + node.nodeSize;
+    const expr = match[1].trim();
+    const cached = cache.get(expr);
 
-      decorations.push(
-        Decoration.inline(from, to, { class: cls, title, 'data-expr': expr })
-      );
+    let cls = 'inline-r-expr';
+    let title;
+    if (!cached) {
+      title = 'Inline R — click "Render R" in the toolbar to evaluate';
+    } else if (cached.error) {
+      cls += ' inline-r-expr--error';
+      title = `Error: ${cached.error}`;
+    } else {
+      cls += ' inline-r-expr--evaluated';
+      title = `= ${cached.value}`;
     }
+
+    decorations.push(
+      Decoration.inline(from, to, { class: cls, title, 'data-expr': expr })
+    );
   });
 
   return DecorationSet.create(doc, decorations);

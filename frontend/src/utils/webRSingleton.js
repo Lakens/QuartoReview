@@ -394,7 +394,6 @@ export async function evaluateInlineExpressions(expressions) {
     try {
       const rObj = await webR.evalR(`as.character(${expr})`);
       const arr = await rObj.toArray();
-      await rObj.destroy();
       results.set(expr, { value: arr.join(' '), error: null });
     } catch (err) {
       const msg = (err.message || 'R error').replace(/^Error in eval\(.*?\) : /, '');

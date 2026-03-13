@@ -20,7 +20,7 @@ import { CommentMark } from '../../utils/CommentMark';
 import { RawCell } from '../../cells/rawCell';
 import { CodeCell } from '../../cells/codeCell';
 import { ipynbToTiptapDoc } from '../../utils/notebookConversionUtils';
-import { qmdToTiptapDoc } from '../../utils/quartoConversionUtils';
+import { qmdToTiptapDoc, tiptapDocToQmd } from '../../utils/quartoConversionUtils';
 import EditorToolbar from './EditorToolbar';
 import { InlineRExtension } from './InlineRDecoration';
 import { CommentsSidebar } from '../Comments/CommentsSidebar';
@@ -83,6 +83,8 @@ const EditorWrapper = ({
   const [isRenderingInlineR, setIsRenderingInlineR] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [showSource, setShowSource] = useState(false);
+  const [rawSource, setRawSource] = useState('');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
@@ -159,12 +161,11 @@ const EditorWrapper = ({
     setIsRenderingInlineR(true);
     try {
       const exprs = new Set();
-      const re = /`r\s+([^`]+?)`/g;
       editor.state.doc.descendants(node => {
         if (!node.isText) return;
-        re.lastIndex = 0;
-        let m;
-        while ((m = re.exec(node.text)) !== null) exprs.add(m[1].trim());
+        if (!node.marks.some(m => m.type.name === 'code')) return;
+        const match = node.text.match(/^r\s+(.+)$/);
+        if (match) exprs.add(match[1].trim());
       });
       if (exprs.size === 0) return;
       await evaluateInlineExpressions([...exprs]);
@@ -174,6 +175,18 @@ const EditorWrapper = ({
       setIsRenderingInlineR(false);
     }
   }, [editor, isRenderingInlineR]);
+
+  const handleToggleSource = useCallback(() => {
+    if (!showSource) {
+      // Entering source mode: serialize current doc to QMD
+      setRawSource(tiptapDocToQmd(editor));
+      setShowSource(true);
+    } else {
+      // Leaving source mode: parse edited text back into TipTap
+      qmdToTiptapDoc(rawSource, editor);
+      setShowSource(false);
+    }
+  }, [editor, showSource, rawSource]);
 
   const onToggleTrackChanges = useCallback(() => {
     if (!editor) return;
@@ -264,6 +277,10 @@ const EditorWrapper = ({
 
   const onCommitConfirm = async () => {
     setShowCommitDialog(false);
+    // If saving while in source mode, sync textarea content back to TipTap first
+    if (showSource) {
+      qmdToTiptapDoc(rawSource, editor);
+    }
     try {
       await handleSaveFile(editor, commitMsg.trim() || 'Update document');
       wordCountAtLastSave.current = wordCount;
@@ -465,6 +482,8 @@ const EditorWrapper = ({
             onToggleDiff={() => { setShowDiff(v => !v); setShowPreview(false); }}
             onRenderInlineR={handleRenderInlineR}
             isRenderingInlineR={isRenderingInlineR}
+            showSource={showSource}
+            onToggleSource={handleToggleSource}
           />
         )}
       </header>
@@ -481,7 +500,17 @@ const EditorWrapper = ({
                 {editor?.isEditable && editor?.view && <EditorBubbleMenuManager editor={editor} />}
                 <div className="editor-main">
                   <div className="editor-content-container">
-                    <EditorContent editor={editor} />
+                    {showSource && (
+                      <textarea
+                        className="source-editor"
+                        value={rawSource}
+                        onChange={e => setRawSource(e.target.value)}
+                        spellCheck={false}
+                      />
+                    )}
+                    <div style={showSource ? { display: 'none' } : undefined}>
+                      <EditorContent editor={editor} />
+                    </div>
                     <div className="references-container">
                       <ReferencesList references={references || referenceManager?.getReferences()} />
                     </div>
@@ -492,7 +521,7 @@ const EditorWrapper = ({
                 </div>
               </div>
               {showDiff    && <DiffViewer editor={editor} selectedRepo={selectedRepo} filePath={filePath} />}
-              {showPreview && !showDiff && <PreviewPane editor={editor} references={references || referenceManager?.getReferences()} inlineRCache={inlineRCache} />}
+              {showPreview && !showDiff && <PreviewPane editor={editor} references={references || referenceManager?.getReferences()} inlineRCache={inlineRCache} filePath={filePath} />}
               {!showPreview && !showDiff && editor && <CommentsSidebar editor={editor} />}
             </div>
           </div>

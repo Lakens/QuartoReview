@@ -17,7 +17,7 @@ import { zoteroPickReference } from '../../utils/api';
 import bibtexParse from 'bibtex-parser-js';
 import { formatApaInText } from '../../utils/apaUtils';
 
-const EditorToolbar = ({ editor, onToggleComments, referenceManager, showPreview, onTogglePreview, showDiff, onToggleDiff, onRenderInlineR, isRenderingInlineR }) => {
+const EditorToolbar = ({ editor, onToggleComments, referenceManager, showPreview, onTogglePreview, showDiff, onToggleDiff, onRenderInlineR, isRenderingInlineR, showSource, onToggleSource }) => {
   const [showHeadingMenu, setShowHeadingMenu] = useState(false);
   const [showTextColorMenu, setShowTextColorMenu] = useState(false);
   const [showBgColorMenu, setShowBgColorMenu] = useState(false);
@@ -431,6 +431,15 @@ const EditorToolbar = ({ editor, onToggleComments, referenceManager, showPreview
           title="Compare versions"
         >
           Diff
+        </button>
+
+        {/* Source toggle */}
+        <button
+          className={`tb-action-btn${showSource ? ' tb-action-btn--active' : ''}`}
+          onClick={onToggleSource}
+          title="Toggle raw QMD source"
+        >
+          Source
         </button>
 
         {/* Preview */}
