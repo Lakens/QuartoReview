@@ -1,14 +1,14 @@
 import { getCurrentTime, get30MinutesAgo, isWithin30Minutes } from './timeUtils';
 import { saveNotebook } from './api';
 
-export async function saveQmdToGitHub(qmdString, filePath, selectedRepo) {
+export async function saveQmdToGitHub(qmdString, filePath, selectedRepo, commitMessage) {
   if (!selectedRepo?.fullName) {
     throw new Error('No repository selected');
   }
-  return saveNotebook(qmdString, filePath, selectedRepo.fullName);
+  return saveNotebook(qmdString, filePath, selectedRepo.fullName, commitMessage);
 }
 
-export async function saveToGitHub(newIpynb, filePath, selectedRepo, user) {
+export async function saveToGitHub(newIpynb, filePath, selectedRepo, user, commitMessage) {
     if (!selectedRepo) {
       throw new Error('No repository selected');
     }
@@ -51,7 +51,7 @@ export async function saveToGitHub(newIpynb, filePath, selectedRepo, user) {
 
     try {
       // Pass the repository full name instead of the whole object
-      const result = await saveNotebook(newIpynb, filePath, selectedRepo.fullName);
+      const result = await saveNotebook(newIpynb, filePath, selectedRepo.fullName, commitMessage);
       return result;
     } catch (error) {
       console.error('Error saving notebook:', error);

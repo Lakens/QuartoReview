@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { content, path, repository } = req.body;
+    const { content, path, repository, commitMessage } = req.body;
     
     const token = req.session?.githubToken || process.env.GITHUB_TOKEN;
 
@@ -92,7 +92,7 @@ router.post('/', async (req, res) => {
       owner,
       repo,
       path: sanitizedPath,
-      message: 'Update content',
+      message: commitMessage || 'Update document',
       content: Buffer.from(fileContent).toString('base64'),
       branch: newBranchName,
       ...(sha && { sha }) // Include SHA if we have it
@@ -102,10 +102,10 @@ router.post('/', async (req, res) => {
     const { data: pr } = await octokit.pulls.create({
       owner,
       repo,
-      title: `Update ${sanitizedPath}`,
+      title: commitMessage || `Update ${sanitizedPath}`,
       head: newBranchName,
       base: defaultBranch,
-      body: 'Automated update of content'
+      body: commitMessage || 'Automated update of content'
     });
 
     // Function to check PR status with retries

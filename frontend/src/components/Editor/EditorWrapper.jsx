@@ -196,15 +196,24 @@ const EditorWrapper = ({
     }
   }
 
-  const onSaveFileClick = async () => {
+  const [showCommitDialog, setShowCommitDialog] = useState(false);
+  const [commitMsg, setCommitMsg] = useState('');
+
+  const onSaveFileClick = () => {
     if (!editor) return;
+    setCommitMsg('');
+    setShowCommitDialog(true);
+  };
+
+  const onCommitConfirm = async () => {
+    setShowCommitDialog(false);
     try {
-      await handleSaveFile(editor);
+      await handleSaveFile(editor, commitMsg.trim() || 'Update document');
       wordCountAtLastSave.current = wordCount;
     } catch (error) {
       setError(error.message);
     }
-  }
+  };
 
   // Determine if it's an error message by checking the content of saveMessage
   const isError = saveMessage && saveMessage.toLowerCase().includes('error');
@@ -373,6 +382,27 @@ const EditorWrapper = ({
         onAccept={handleLtAccept}
         onDismiss={handleLtDismiss}
       />
+
+      {showCommitDialog && (
+        <div className="commit-dialog-overlay" onClick={() => setShowCommitDialog(false)}>
+          <div className="commit-dialog" onClick={e => e.stopPropagation()}>
+            <h3>Describe your changes</h3>
+            <input
+              className="commit-dialog-input"
+              type="text"
+              placeholder="e.g. Revised introduction, added references"
+              value={commitMsg}
+              onChange={e => setCommitMsg(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') onCommitConfirm(); if (e.key === 'Escape') setShowCommitDialog(false); }}
+              autoFocus
+            />
+            <div className="commit-dialog-actions">
+              <button className="commit-dialog-cancel" onClick={() => setShowCommitDialog(false)}>Cancel</button>
+              <button className="commit-dialog-save" onClick={onCommitConfirm}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

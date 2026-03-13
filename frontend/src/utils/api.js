@@ -120,9 +120,9 @@ export const fetchNotebooksInRepo = async (repository) => {
   }
 };
 
-export const saveNotebook = async (content, path, repository) => {
+export const saveNotebook = async (content, path, repository, commitMessage) => {
   try {
-    const response = await api.post('/api/saveFile', { content, path, repository });
+    const response = await api.post('/api/saveFile', { content, path, repository, commitMessage });
     return response.data;
   } catch (error) {
     console.error('Failed to save notebook:', error);

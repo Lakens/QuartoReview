@@ -474,6 +474,84 @@ body {
 }
 .mention-list > div:hover { background: var(--color-primary-soft); }
 
+/* ── Commit message dialog ───────────────────────────────────────────────── */
+
+.commit-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.commit-dialog {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md, 8px);
+  padding: 1.25rem 1.5rem;
+  width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.commit-dialog h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.commit-dialog-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm, 5px);
+  font-size: 0.875rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+
+.commit-dialog-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.commit-dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.commit-dialog-cancel {
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm, 5px);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.commit-dialog-cancel:hover { background: var(--color-surface-muted); }
+
+.commit-dialog-save {
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius-sm, 5px);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.commit-dialog-save:hover { background: var(--color-primary-hover); }
+
+/* ── BibTeX mention ──────────────────────────────────────────────────────── */
+
 .bib-mention {
   background: var(--color-primary-soft);
   border-radius: 3px;
