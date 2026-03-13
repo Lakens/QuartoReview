@@ -10,15 +10,16 @@
  *
  * Call getWebR() to obtain the ready instance; it returns a promise so the
  * caller can await initialisation without blocking.
+ *
+ * Call installPackagesForQmd(qmdContent) after loading a file to install exactly
+ * the packages referenced by library()/require() calls in that document.
  */
-
-// ── Package pre-installation ──────────────────────────────────────────────────
-const PREINSTALL_PACKAGES = ['tidyverse', 'kableExtra', 'palmerpenguins'];
 
 // ── Status / subscriber system ────────────────────────────────────────────────
 // packageStatus shape: { phase: 'idle'|'installing'|'done'|'error',
-//                        current: string|null, index: number, total: number }
-let _packageStatus = { phase: 'idle', current: null, index: 0, total: PREINSTALL_PACKAGES.length };
+//                        current: string|null, index: number, total: number,
+//                        errors: Array<{pkg: string, message: string}> }
+let _packageStatus = { phase: 'idle', current: null, index: 0, total: 0, errors: [] };
 const _packageSubscribers = new Set();
 
 function _setPackageStatus(update) {
@@ -36,6 +37,32 @@ export function subscribePackageStatus(fn) {
 /** Synchronous snapshot of the current package status. */
 export function getPackageStatus() {
   return _packageStatus;
+}
+
+// ── QMD package extraction ────────────────────────────────────────────────────
+
+/**
+ * Parse a QMD string and return the unique set of package names referenced
+ * by library() or require() calls inside R code chunks.
+ */
+export function extractPackagesFromQmd(qmdContent) {
+  const packages = new Set();
+  if (!qmdContent) return packages;
+
+  // Match fenced R code chunks: ```{r ...} ... ```
+  const chunkRegex = /^```\{r[^}]*\}([\s\S]*?)^```/gm;
+  let chunkMatch;
+  while ((chunkMatch = chunkRegex.exec(qmdContent)) !== null) {
+    const chunkBody = chunkMatch[1];
+    // Match library(pkg), library("pkg"), require(pkg), require('pkg')
+    // Also handles optional second arguments: library(pkg, quietly = TRUE)
+    const libRegex = /(?:library|require)\s*\(\s*["']?([a-zA-Z][a-zA-Z0-9._]*)["']?\s*(?:[,)])/g;
+    let libMatch;
+    while ((libMatch = libRegex.exec(chunkBody)) !== null) {
+      packages.add(libMatch[1]);
+    }
+  }
+  return packages;
 }
 
 // ── WebR instance ─────────────────────────────────────────────────────────────
@@ -83,10 +110,6 @@ export async function getWebR() {
       await webR.evalRVoid('options(knitr.table.format = "html")');
 
       _instance = webR;
-
-      // Pre-install packages after R is ready
-      await _preinstallPackages(webR);
-
       return webR;
     })().catch(err => {
       console.error('[WebR] Initialization failed:', err);
@@ -97,24 +120,38 @@ export async function getWebR() {
   return _initPromise;
 }
 
-async function _preinstallPackages(webR) {
-  console.log('[WebR] Installing R packages…');
-  _setPackageStatus({ phase: 'installing', index: 0, total: PREINSTALL_PACKAGES.length });
+/**
+ * Install exactly the packages referenced by library()/require() in the given
+ * QMD content.  Boots WebR if not already running.  Reports per-package errors
+ * (e.g. package not compiled for WebAssembly) without aborting the whole batch.
+ */
+export async function installPackagesForQmd(qmdContent) {
+  const packages = [...extractPackagesFromQmd(qmdContent)];
+  if (packages.length === 0) return;
 
-  try {
-    for (let i = 0; i < PREINSTALL_PACKAGES.length; i++) {
-      const pkg = PREINSTALL_PACKAGES[i];
-      _setPackageStatus({ phase: 'installing', current: pkg, index: i + 1, total: PREINSTALL_PACKAGES.length });
-      console.log(`[WebR] Installing ${pkg} (${i + 1}/${PREINSTALL_PACKAGES.length})…`);
+  const webR = await getWebR();
+  const errors = [];
+
+  _setPackageStatus({ phase: 'installing', index: 0, total: packages.length, errors: [] });
+
+  for (let i = 0; i < packages.length; i++) {
+    const pkg = packages[i];
+    _setPackageStatus({ current: pkg, index: i + 1 });
+    console.log(`[WebR] Installing ${pkg} (${i + 1}/${packages.length})…`);
+    try {
       await webR.installPackages([pkg], { quiet: true });
       console.log(`[WebR] ${pkg} installed.`);
+    } catch (err) {
+      const message = err?.message || 'Not available for WebAssembly';
+      console.warn(`[WebR] Failed to install ${pkg}:`, message);
+      errors.push({ pkg, message });
     }
+  }
 
-    _setPackageStatus({ phase: 'done', current: null });
-    console.log('[WebR] All packages installed.');
-  } catch (err) {
-    console.error('[WebR] Package installation failed:', err);
-    _setPackageStatus({ phase: 'error', current: null });
+  if (errors.length > 0) {
+    _setPackageStatus({ phase: 'error', current: null, errors });
+  } else {
+    _setPackageStatus({ phase: 'done', current: null, errors: [] });
   }
 }
 

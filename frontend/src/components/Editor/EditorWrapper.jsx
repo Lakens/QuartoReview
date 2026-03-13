@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaSun, FaMoon, FaEdit, FaShare } from 'react-icons/fa';
 import ShareModal from '../Share/ShareModal';
 import { useAuth } from '../../contexts/AuthContext';
-import { subscribePackageStatus } from '../../utils/webRSingleton';
+import { subscribePackageStatus, installPackagesForQmd } from '../../utils/webRSingleton';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Mathematics from 'tiptap-math';
@@ -266,6 +266,8 @@ const EditorWrapper = ({
           setError(err.message);
         }
       });
+      // Install exactly the packages this document uses
+      installPackagesForQmd(qmdContent);
     }
   }, [editor, qmdContent]);
 
@@ -311,7 +313,9 @@ const EditorWrapper = ({
         <div className={`pkg-install-banner${pkgStatus.phase === 'error' ? ' pkg-install-banner--error' : ''}`}>
           {pkgStatus.phase === 'installing'
             ? `Installing R packages… ${pkgStatus.current} (${pkgStatus.index}/${pkgStatus.total})`
-            : 'R package installation failed — check browser console (F12) for details'}
+            : pkgStatus.errors?.length > 0
+              ? `Could not install: ${pkgStatus.errors.map(e => e.pkg).join(', ')} — not available for WebAssembly. Other packages were installed.`
+              : 'R package installation failed — check browser console (F12) for details'}
         </div>
       )}
       <header className="app-header">
