@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuartoReview — Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8f9fa;
+      color: #1a1a1a;
+      padding: 32px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 28px;
+    }
+
+    .step {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .step-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .step h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .step p {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #444;
+      margin-bottom: 10px;
+    }
+
+    .step ol {
+      font-size: 13px;
+      line-height: 1.8;
+      color: #444;
+      padding-left: 18px;
+      margin-bottom: 12px;
+    }
+
+    .step ol li strong {
+      color: #1a1a1a;
+    }
+
+    .github-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #24292f;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 14px;
+    }
+
+    .github-btn:hover { background: #32383f; }
+
+    .token-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      outline: none;
+    }
+
+    input[type="text"]:focus { border-color: #0066cc; }
+    input[type="text"].error { border-color: #cc0000; }
+
+    .error-msg {
+      font-size: 12px;
+      color: #cc0000;
+      margin-top: 6px;
+      display: none;
+    }
+
+    .actions {
+      margin-top: auto;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .save-btn {
+      background: #0066cc;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 28px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .save-btn:hover { background: #0052a3; }
+    .save-btn:disabled { background: #aac4e0; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <h1>Welcome to QuartoReview</h1>
+  <p class="subtitle">One-time setup — connect your GitHub account to get started.</p>
+
+  <div class="step">
+    <div class="step-label">Step 1 — Create a GitHub Personal Access Token</div>
+    <h2>What is a Personal Access Token?</h2>
+    <p>
+      QuartoReview uses GitHub to load and save your Quarto documents.
+      A Personal Access Token (PAT) is a password-like key that lets the app
+      access only the GitHub repositories you choose — without sharing your GitHub password.
+    </p>
+    <ol>
+      <li>Click <strong>"Open GitHub token page"</strong> below — it opens in your browser.</li>
+      <li>If asked, log in to GitHub.</li>
+      <li>The page pre-selects the <strong>repo</strong> scope. Leave it checked — this gives read and write access to your repositories.</li>
+      <li>Scroll down and click <strong>"Generate token"</strong>.</li>
+      <li>Copy the token that appears — it starts with <strong>ghp_</strong>. <em>You can only see it once.</em></li>
+    </ol>
+    <button class="github-btn" onclick="window.setup.openGitHub()">
+      &#128279; Open GitHub token page
+    </button>
+  </div>
+
+  <div class="step">
+    <div class="step-label">Step 2 — Paste your token</div>
+    <h2>Enter your Personal Access Token</h2>
+    <p>Paste the token you just copied (it starts with <strong>ghp_</strong>):</p>
+    <div class="token-row">
+      <input type="text" id="token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" spellcheck="false" autocomplete="off" />
+    </div>
+    <div class="error-msg" id="error-msg">Please enter a valid token (it should start with ghp_).</div>
+  </div>
+
+  <div class="actions">
+    <button class="save-btn" id="save-btn" onclick="handleSave()">Save and Start</button>
+  </div>
+
+  <script>
+    const input = document.getElementById('token');
+    const errorMsg = document.getElementById('error-msg');
+    const saveBtn = document.getElementById('save-btn');
+
+    input.addEventListener('input', () => {
+      input.classList.remove('error');
+      errorMsg.style.display = 'none';
+    });
+
+    function handleSave() {
+      const token = input.value.trim();
+      if (!token || !token.startsWith('ghp_')) {
+        input.classList.add('error');
+        errorMsg.style.display = 'block';
+        input.focus();
+        return;
+      }
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      window.setup.save(token);
+    }
+
+    // Allow Enter key to submit
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSave();
+    });
+
+    input.focus();
+  </script>
+</body>
+</html>

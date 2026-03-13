@@ -1,9 +1,10 @@
-const { app, BrowserWindow, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const net = require('net');
 const path = require('path');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 
 let mainWindow = null;
@@ -27,42 +28,120 @@ function getFrontendDistPath() {
   return path.join(app.getAppPath(), 'frontend', 'dist');
 }
 
-function getEnvTemplatePath() {
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'backend', '.env.example');
+function getDesktopEnvPath() {
+  return path.join(app.getPath('userData'), '.env');
+}
+
+// ---------------------------------------------------------------------------
+// Setup: check whether a valid GitHub token has been configured
+// ---------------------------------------------------------------------------
+
+function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+  const result = {};
+  for (const line of fs.readFileSync(filePath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    result[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
   }
-  return path.join(app.getAppPath(), 'backend', '.env.example');
+  return result;
+}
+
+function needsSetup() {
+  const envPath = getDesktopEnvPath();
+  if (!fs.existsSync(envPath)) return true;
+  const env = parseEnvFile(envPath);
+  const token = env['GITHUB_TOKEN'] || '';
+  // Not set, empty, or still the placeholder from the template
+  return !token || token.startsWith('ghp_YOUR') || token === 'your_token_here';
 }
 
 function ensureDesktopEnvFile() {
-  const userDataDir = app.getPath('userData');
-  const envPath = path.join(userDataDir, '.env');
-
-  if (fs.existsSync(envPath)) {
-    return envPath;
+  const envPath = getDesktopEnvPath();
+  if (!fs.existsSync(envPath)) {
+    const templatePath = app.isPackaged
+      ? path.join(process.resourcesPath, 'backend', '.env.example')
+      : path.join(app.getAppPath(), 'backend', '.env.example');
+    if (fs.existsSync(templatePath)) {
+      fs.copyFileSync(templatePath, envPath);
+    } else {
+      fs.writeFileSync(envPath,
+        'SESSION_SECRET=\nGITHUB_TOKEN=\n', 'utf8');
+    }
   }
-
-  const templatePath = getEnvTemplatePath();
-  if (fs.existsSync(templatePath)) {
-    fs.copyFileSync(templatePath, envPath);
-  } else {
-    fs.writeFileSync(envPath, 'SESSION_SECRET=replace-this-with-a-random-secret\n', 'utf8');
-  }
-
-  dialog.showMessageBoxSync({
-    type: 'info',
-    title: 'QuartoReview Setup',
-    message: 'A desktop configuration file was created.',
-    detail: `Fill in ${envPath} with either a GitHub token or OAuth credentials before using GitHub-backed features.`
-  });
-
   return envPath;
 }
 
-function spawnBackend() {
-  if (backendProcess) {
-    return;
+function saveToken(token) {
+  const envPath = ensureDesktopEnvFile();
+  let content = fs.readFileSync(envPath, 'utf8');
+
+  // Replace or append GITHUB_TOKEN line (including commented-out versions)
+  if (/^#?\s*GITHUB_TOKEN\s*=/m.test(content)) {
+    content = content.replace(/^#?\s*GITHUB_TOKEN\s*=.*$/m, `GITHUB_TOKEN=${token}`);
+  } else {
+    content += `\nGITHUB_TOKEN=${token}\n`;
   }
+
+  // Auto-generate SESSION_SECRET if missing or empty
+  if (/^#?\s*SESSION_SECRET\s*=\s*$/m.test(content) || !/^SESSION_SECRET\s*=/m.test(content)) {
+    const secret = crypto.randomBytes(32).toString('hex');
+    if (/^#?\s*SESSION_SECRET\s*=/m.test(content)) {
+      content = content.replace(/^#?\s*SESSION_SECRET\s*=.*$/m, `SESSION_SECRET=${secret}`);
+    } else {
+      content = `SESSION_SECRET=${secret}\n` + content;
+    }
+  }
+
+  fs.writeFileSync(envPath, content, 'utf8');
+}
+
+// ---------------------------------------------------------------------------
+// Setup window
+// ---------------------------------------------------------------------------
+
+function showSetupWindow() {
+  return new Promise((resolve) => {
+    const win = new BrowserWindow({
+      width: 600,
+      height: 580,
+      resizable: false,
+      center: true,
+      title: 'QuartoReview — Setup',
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'setup-preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    win.setMenuBarVisibility(false);
+    win.loadFile(path.join(__dirname, 'setup.html'));
+    win.once('ready-to-show', () => win.show());
+
+    ipcMain.once('setup-save', (_event, token) => {
+      saveToken(token.trim());
+      win.close();
+      resolve();
+    });
+
+    ipcMain.once('setup-open-github', () => {
+      shell.openExternal('https://github.com/settings/tokens/new?scopes=repo&description=QuartoReview');
+    });
+
+    win.on('closed', () => resolve());
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Backend
+// ---------------------------------------------------------------------------
+
+function spawnBackend() {
+  if (backendProcess) return;
 
   const backendScriptPath = getBackendScriptPath();
   const backendDir = path.dirname(backendScriptPath);
@@ -79,26 +158,18 @@ function spawnBackend() {
       FRONTEND_URL: ELECTRON_RENDERER_URL || `http://localhost:${BACKEND_PORT}`,
       FRONTEND_DIST: getFrontendDistPath(),
       BACKEND_ENV_PATH: desktopEnvPath,
-      SESSION_DIR: path.join(app.getPath('userData'), 'sessions')
-    }
+      SESSION_DIR: path.join(app.getPath('userData'), 'sessions'),
+    },
   });
 
   if (!app.isPackaged) {
-    backendProcess.stdout.on('data', (chunk) => {
-      process.stdout.write(`[backend] ${chunk}`);
-    });
-    backendProcess.stderr.on('data', (chunk) => {
-      process.stderr.write(`[backend] ${chunk}`);
-    });
+    backendProcess.stdout.on('data', (chunk) => process.stdout.write(`[backend] ${chunk}`));
+    backendProcess.stderr.on('data', (chunk) => process.stderr.write(`[backend] ${chunk}`));
   }
 
   backendProcess.on('exit', (code, signal) => {
     backendProcess = null;
-
-    if (quitting) {
-      return;
-    }
-
+    if (quitting) return;
     dialog.showErrorBox(
       'QuartoReview Backend Stopped',
       `The embedded backend exited unexpectedly (${signal || code || 'unknown'}).`
@@ -108,34 +179,19 @@ function spawnBackend() {
 }
 
 function stopBackend() {
-  if (!backendProcess) {
-    return;
-  }
-
+  if (!backendProcess) return;
   const child = backendProcess;
   backendProcess = null;
-
   child.kill('SIGTERM');
-
-  setTimeout(() => {
-    if (!child.killed) {
-      child.kill('SIGKILL');
-    }
-  }, 3000);
+  setTimeout(() => { if (!child.killed) child.kill('SIGKILL'); }, 3000);
 }
 
 function waitForPort(port, timeoutMs = 20000) {
   const start = Date.now();
-
   return new Promise((resolve, reject) => {
     const attempt = () => {
       const socket = net.createConnection({ port, host: '127.0.0.1' });
-
-      socket.once('connect', () => {
-        socket.end();
-        resolve();
-      });
-
+      socket.once('connect', () => { socket.end(); resolve(); });
       socket.once('error', () => {
         socket.destroy();
         if (Date.now() - start >= timeoutMs) {
@@ -145,7 +201,6 @@ function waitForPort(port, timeoutMs = 20000) {
         setTimeout(attempt, 250);
       });
     };
-
     attempt();
   });
 }
@@ -153,14 +208,9 @@ function waitForPort(port, timeoutMs = 20000) {
 function waitForUrl(urlString, timeoutMs = 20000) {
   const start = Date.now();
   const client = urlString.startsWith('https:') ? https : http;
-
   return new Promise((resolve, reject) => {
     const attempt = () => {
-      const request = client.get(urlString, (response) => {
-        response.resume();
-        resolve();
-      });
-
+      const request = client.get(urlString, (response) => { response.resume(); resolve(); });
       request.on('error', () => {
         if (Date.now() - start >= timeoutMs) {
           reject(new Error(`Timed out waiting for ${urlString}`));
@@ -169,10 +219,13 @@ function waitForUrl(urlString, timeoutMs = 20000) {
         setTimeout(attempt, 250);
       });
     };
-
     attempt();
   });
 }
+
+// ---------------------------------------------------------------------------
+// Main window
+// ---------------------------------------------------------------------------
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -186,8 +239,8 @@ function createMainWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
-    }
+      sandbox: false,
+    },
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -195,29 +248,35 @@ function createMainWindow() {
     return { action: 'deny' };
   });
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-  });
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-
+  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.on('closed', () => { mainWindow = null; });
   return mainWindow;
 }
 
 async function launchApp() {
+  // Show setup wizard on every launch until a valid token is saved
+  if (needsSetup()) {
+    await showSetupWindow();
+    // If they closed the window without saving, quit
+    if (needsSetup()) {
+      app.quit();
+      return;
+    }
+  }
+
   spawnBackend();
   await waitForPort(BACKEND_PORT);
 
   const startUrl = ELECTRON_RENDERER_URL || `http://localhost:${BACKEND_PORT}`;
-  if (ELECTRON_RENDERER_URL) {
-    await waitForUrl(ELECTRON_RENDERER_URL);
-  }
+  if (ELECTRON_RENDERER_URL) await waitForUrl(ELECTRON_RENDERER_URL);
 
   const window = createMainWindow();
   await window.loadURL(startUrl);
 }
+
+// ---------------------------------------------------------------------------
+// App lifecycle
+// ---------------------------------------------------------------------------
 
 app.whenReady().then(async () => {
   try {
@@ -228,9 +287,7 @@ app.whenReady().then(async () => {
   }
 
   app.on('activate', async () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      await launchApp();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) await launchApp();
   });
 });
 
@@ -240,7 +297,5 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  if (process.platform !== 'darwin') app.quit();
 });

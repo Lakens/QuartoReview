@@ -23,7 +23,7 @@ if errorlevel 1 (
 
 :: ── Step 2: Build frontend (sets API URL to local backend) ──────────────────
 echo [2/4] Building frontend...
-call npx vite build --mode electron
+call npx vite build
 if errorlevel 1 (
     echo [ERROR] Frontend build failed.
     pause

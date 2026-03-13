@@ -1,5 +1,5 @@
 {
-  "name": "quartoreview-electron",
+  "name": "quartoreview",
   "version": "1.0.0",
   "description": "Electron wrapper for QuartoReview",
   "main": "main.cjs",
@@ -18,8 +18,11 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "setup.html",
+      "setup-preload.cjs",
       "package.json"
     ],
+    "icon": "icon.ico",
     "extraResources": [
       {
         "from": "../backend",
@@ -49,6 +52,7 @@
   },
   "devDependencies": {
     "electron": "^34.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "png-to-ico": "^3.0.1"
   }
 }
