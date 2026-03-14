@@ -1,0 +1,111 @@
+name: Build Desktop Apps
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'backend/**'
+      - 'electron/**'
+      - 'frontend/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'build_win.bat'
+      - 'build_mac.bat'
+      - 'build_mac.sh'
+      - 'install.bat'
+      - 'install.sh'
+      - 'start.bat'
+      - 'start.sh'
+      - '.github/workflows/build-desktop.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Install Electron dependencies
+        run: npm ci
+        working-directory: electron
+
+      - name: Build Windows installer
+        run: npm run build:win
+        working-directory: electron
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarto-review-windows-${{ github.sha }}
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Install Electron dependencies
+        run: npm ci
+        working-directory: electron
+
+      - name: Build macOS app
+        run: npm run build:mac
+        working-directory: electron
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarto-review-macos-${{ github.sha }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error

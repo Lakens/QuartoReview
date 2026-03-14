@@ -122,8 +122,15 @@ This builds the frontend, starts the embedded backend, and opens the Electron de
 To build a distributable macOS app bundle and disk image, run:
 
 ```bash
-npm run dist
+chmod +x build_mac.sh
+./build_mac.sh
 ```
+
+The generated installer artifacts go into `dist/`.
+
+`dist/` is intentionally ignored by git because it contains generated build output, large platform-specific binaries, and packaging metadata that can be recreated from source. If you want to share the desktop app, the cleaner approach is to upload the built installer from `dist/` to a GitHub Release, cloud storage, or a shared drive instead of committing `dist/` into the repository history.
+
+A GitHub Actions workflow is included at `.github/workflows/build-desktop.yml`. It builds Windows and macOS installers automatically when app-relevant files change in `backend/`, `frontend/`, `electron/`, or the build scripts, and it ignores documentation-only changes such as `README.md`.
 
 ---
 
