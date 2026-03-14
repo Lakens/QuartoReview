@@ -601,6 +601,10 @@ ipcMain.handle('open-startup-guide', async () => {
   };
 });
 
+ipcMain.handle('get-app-version', async () => {
+  return app.getVersion();
+});
+
 ipcMain.handle('autosave-save', async (_event, payload) => {
   const { document, content, kind } = payload || {};
   const paths = getDocumentAutosavePaths(document);

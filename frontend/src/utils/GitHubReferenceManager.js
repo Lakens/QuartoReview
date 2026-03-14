@@ -60,7 +60,7 @@ export class GitHubReferenceManager {
     }
     return parsed.map(entry => ({
       ...entry,
-      citationKey: entry.citationKey || entry.key || '',
+      citationKey: (entry.citationKey || entry.key || '').toLowerCase(),
       entryTags: entry.entryTags || {}
     }));
   }
@@ -108,16 +108,22 @@ export class GitHubReferenceManager {
     }
 
     // Check for duplicate citation key
+    const normalizedKey = String(reference.citationKey).toLowerCase();
+    const normalizedReference = {
+      ...reference,
+      citationKey: normalizedKey,
+    };
+
     const existingIndex = this.references.findIndex(
-      ref => ref.citationKey === reference.citationKey
+      ref => ref.citationKey === normalizedKey
     );
 
     if (existingIndex >= 0) {
       // Update existing reference
-      this.references[existingIndex] = reference;
+      this.references[existingIndex] = normalizedReference;
     } else {
       // Add new reference
-      this.references.push(reference);
+      this.references.push(normalizedReference);
     }
   }
 
@@ -131,12 +137,16 @@ export class GitHubReferenceManager {
       const parsed = bibtexParse.toJSON(bibEntry)[0];
       
       // Add to references if not already present
-      if (!this.references.find(ref => ref.citationKey === parsed.citationKey)) {
-        this.references.push(parsed);
+      const normalizedKey = String(parsed.citationKey || parsed.key || '').toLowerCase();
+      if (!this.references.find(ref => ref.citationKey === normalizedKey)) {
+        this.references.push({
+          ...parsed,
+          citationKey: normalizedKey,
+        });
         await this.save();
       }
       
-      return parsed.citationKey;
+      return normalizedKey;
     } catch (error) {
       console.error('Error adding reference from DOI:', error);
       throw error;
@@ -162,6 +172,7 @@ export class GitHubReferenceManager {
   }
 
   getReference(citationKey) {
-    return this.references.find(ref => ref.citationKey === citationKey);
+    const normalizedKey = String(citationKey || '').toLowerCase();
+    return this.references.find(ref => ref.citationKey === normalizedKey);
   }
 }

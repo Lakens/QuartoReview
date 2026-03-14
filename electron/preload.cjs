@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('quartoReviewDesktop', {
   getRecoveryCandidate: (payload)         => ipcRenderer.invoke('autosave-get-recovery', payload),
   clearAutosaves: (payload)               => ipcRenderer.invoke('autosave-clear', payload),
   openAutosaveFolder: ()                  => ipcRenderer.invoke('autosave-open-folder'),
+  getAppVersion: ()                       => ipcRenderer.invoke('get-app-version'),
 
   // In-app GitHub setup (replaces install-time wizard)
   showGitHubSetup: ()                     => ipcRenderer.invoke('show-github-setup'),

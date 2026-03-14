@@ -45,7 +45,8 @@ const SINGLE_STANDALONE_RE = new RegExp(`(^|[\\s([{"'“‘])${CITE_KEY_PATTERN}
 
 function normalizeCitationKey(rawKey) {
   if (!rawKey) return '';
-  return rawKey.startsWith('{') && rawKey.endsWith('}') ? rawKey.slice(1, -1) : rawKey;
+  const normalized = rawKey.startsWith('{') && rawKey.endsWith('}') ? rawKey.slice(1, -1) : rawKey;
+  return normalized.toLowerCase();
 }
 
 function formatSingleCitationPart(part, refMap, citedKeys, mode = 'parenthetical') {

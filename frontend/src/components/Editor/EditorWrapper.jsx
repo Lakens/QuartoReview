@@ -104,6 +104,7 @@ const EditorWrapper = ({
   const [showSource, setShowSource] = useState(false);
   const [rawSource, setRawSource] = useState('');
   const [showMenu, setShowMenu] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
   const menuRef = useRef(null);
   const lastEditAtRef = useRef(Date.now());
   const lastAutosaveAtRef = useRef(0);
@@ -128,6 +129,20 @@ const EditorWrapper = ({
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+
+  useEffect(() => {
+    const loadVersion = async () => {
+      if (!window.quartoReviewDesktop?.getAppVersion) return;
+      try {
+        const version = await window.quartoReviewDesktop.getAppVersion();
+        setAppVersion(version || '');
+      } catch (error) {
+        console.error('Failed to load app version:', error);
+      }
+    };
+
+    loadVersion();
+  }, []);
 
   useEffect(() => {
     return subscribePackageStatus(setPkgStatus);
@@ -786,7 +801,7 @@ const EditorWrapper = ({
       />
 
       <footer className="app-footer">
-        Built on <a href="https://github.com/MichelNivard/resolve" target="_blank" rel="noreferrer">Resolve</a> by Michel Nivard. Made by Daniel Lakens. Submit issues to <a href="https://github.com/Lakens/QuartoReview" target="_blank" rel="noreferrer">github.com/Lakens/QuartoReview</a>.
+        Built on <a href="https://github.com/MichelNivard/resolve" target="_blank" rel="noreferrer">Resolve</a> by Michel Nivard. Made by Daniel Lakens. Version {appVersion || 'dev'}. Submit issues to <a href="https://github.com/Lakens/QuartoReview" target="_blank" rel="noreferrer">github.com/Lakens/QuartoReview</a>.
       </footer>
 
       {showCommitDialog && (
