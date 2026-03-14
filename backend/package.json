@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.0.0",
+  "version": "0.0.2",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -25,7 +25,7 @@
     "helmet": "^8.0.0",
     "js-yaml": "^4.1.0",
     "path-sanitizer": "^3.0.1",
-"redis": "^4.7.0",
+    "redis": "^4.7.0",
     "sanitize-filename": "^1.6.3",
     "session-file-store": "^1.5.0"
   }
