@@ -112,6 +112,7 @@ export const RawCell = Node.create({
           // Create primary fields section
           const primarySection = document.createElement('div');
           primarySection.classList.add('primary-fields');
+          primarySection.classList.add('primary-fields--article');
           
           // Create additional fields section
           const additionalSection = document.createElement('div');
@@ -122,6 +123,7 @@ export const RawCell = Node.create({
             const row = document.createElement('div');
             row.classList.add('property-row');
             row.setAttribute('data-property', key);
+            row.classList.add(`property-row--${key.toLowerCase()}`);
             
             const labelDiv = document.createElement('div');
             labelDiv.classList.add('property-label');
@@ -281,6 +283,7 @@ export const RawCell = Node.create({
             
             input.value = value || '';
             input.setAttribute('data-property', key);
+            input.classList.add(`property-input--${key.toLowerCase()}`);
             valueDiv.appendChild(input);
             
             row.appendChild(labelDiv);

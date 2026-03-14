@@ -343,50 +343,52 @@ const EditorWrapper = ({
   }, [editor, ipynb]);
 
   useEffect(() => {
-    if (editor && qmdContent) {
-      let cancelled = false;
+    if (!editor || !qmdContent) return;
 
-      requestAnimationFrame(() => {
-        try {
-          qmdToTiptapDoc(qmdContent, editor);
-        } catch (err) {
-          setError(err.message);
+    let cancelled = false;
+    const repo = selectedRepo ? `${selectedRepo.owner.login}/${selectedRepo.name}` : null;
+    const loadedFilePath = filePath;
+
+    requestAnimationFrame(() => {
+      try {
+        qmdToTiptapDoc(qmdContent, editor);
+      } catch (err) {
+        setError(err.message);
+      }
+    });
+
+    // Reset any previously dismissed banners for the newly loaded document.
+    setPkgBannerDismissed(false);
+    setFileBannerDismissed(false);
+
+    const loadQmdDependencies = async () => {
+      resetPackageStatus();
+      resetFileStatus();
+
+      try {
+        await installPackagesForQmd(qmdContent);
+      } catch (err) {
+        if (!cancelled) {
+          setError(`R package setup failed: ${err.message}`);
         }
-      });
-      // Reset any previously dismissed banners for the new file
-      setPkgBannerDismissed(false);
-      setFileBannerDismissed(false);
-      const repo = selectedRepo ? `${selectedRepo.owner.login}/${selectedRepo.name}` : null;
+      }
 
-      const loadQmdDependencies = async () => {
-        resetPackageStatus();
-        resetFileStatus();
-
-        try {
-          await installPackagesForQmd(qmdContent);
-        } catch (err) {
-          if (!cancelled) {
-            setError(`R package setup failed: ${err.message}`);
-          }
+      try {
+        await syncFilesForQmd(qmdContent, loadedFilePath, repo, fetchRawFile);
+      } catch (err) {
+        setFileStatusError(err.message || 'Data file sync failed');
+        if (!cancelled) {
+          setError(`Data file sync failed: ${err.message}`);
         }
+      }
+    };
 
-        try {
-          await syncFilesForQmd(qmdContent, filePath, repo, fetchRawFile);
-        } catch (err) {
-          setFileStatusError(err.message || 'Data file sync failed');
-          if (!cancelled) {
-            setError(`Data file sync failed: ${err.message}`);
-          }
-        }
-      };
+    loadQmdDependencies();
 
-      loadQmdDependencies();
-
-      return () => {
-        cancelled = true;
-      };
-    }
-  }, [editor, qmdContent, selectedRepo, filePath]);
+    return () => {
+      cancelled = true;
+    };
+  }, [editor, qmdContent]);
 
   // After content loads, reset the save baseline so newly-loaded words don't
   // count as unsaved. Double rAF: first rAF is when the content conversion runs;
@@ -654,6 +656,7 @@ const EditorWrapper = ({
                         className="source-editor"
                         value={rawSource}
                         onChange={e => setRawSource(e.target.value)}
+                        wrap="soft"
                         spellCheck={false}
                       />
                     )}

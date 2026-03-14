@@ -3,7 +3,7 @@ import katex from 'katex';
 import { tiptapDocToQmd } from '../../utils/quartoConversionUtils';
 import { parseQmd } from '../../utils/quartoUtils';
 import { markdownToHtml } from '../../utils/markdownConverter';
-import { formatApaInText, formatApaReference } from '../../utils/apaUtils';
+import { formatApaInText, formatApaNarrative, formatApaReference } from '../../utils/apaUtils';
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -36,25 +36,84 @@ function renderCellOutput(output) {
   return '';
 }
 
+const CITE_KEY_PATTERN = '@([a-zA-Z0-9_][a-zA-Z0-9_:.#$%&\\-+?<>~/]*|\\{[^}]+\\})';
+const LOCATOR_PATTERN = '(?:p|pp|page|pages|chapter|chap|section|sec|paragraph|para|figure|fig|volume|vol)\\.?\\s+[0-9]+(?:\\s*[-–]\\s*[0-9]+)?';
+const SINGLE_CITATION_RE = new RegExp(`^\\s*([^@]*?)${CITE_KEY_PATTERN}(?:\\s*,\\s*(${LOCATOR_PATTERN}))?\\s*$`);
+const BRACKETED_CLUSTER_RE = /\[([^\]]*@[^[]*?)\]/g;
+const SEMICOLON_CLUSTER_RE = new RegExp(`(^|[\\s([{"'“‘])((?:${CITE_KEY_PATTERN}(?:\\s*,\\s*${LOCATOR_PATTERN})?)(?:\\s*;\\s*${CITE_KEY_PATTERN}(?:\\s*,\\s*${LOCATOR_PATTERN})?)+)`, 'g');
+const SINGLE_STANDALONE_RE = new RegExp(`(^|[\\s([{"'“‘])${CITE_KEY_PATTERN}(?:\\s*,\\s*(${LOCATOR_PATTERN}))?(?=($|[\\s).,;:!?\\]}”’]))`, 'g');
+
+function normalizeCitationKey(rawKey) {
+  if (!rawKey) return '';
+  return rawKey.startsWith('{') && rawKey.endsWith('}') ? rawKey.slice(1, -1) : rawKey;
+}
+
+function formatSingleCitationPart(part, refMap, citedKeys, mode = 'parenthetical') {
+  const match = part.match(SINGLE_CITATION_RE);
+  if (!match) return part;
+
+  const prefix = (match[1] || '').trim();
+  const key = normalizeCitationKey(match[2]);
+  const locator = (match[3] || '').trim();
+  const entry = refMap[key];
+
+  if (!entry) {
+    return prefix ? `${prefix} (${key})` : `(${key})`;
+  }
+
+  if (!citedKeys.includes(key)) citedKeys.push(key);
+
+  const base = mode === 'narrative' ? formatApaNarrative(entry) : formatApaInText(entry);
+  const withLocator = locator
+    ? (mode === 'narrative'
+        ? base.replace(/\)$/, `, ${locator})`)
+        : base.replace(/\)$/, `, ${locator})`))
+    : base;
+
+  return prefix ? `${prefix} ${withLocator}` : withLocator;
+}
+
+function formatCitationCluster(clusterText, refMap, citedKeys, mode = 'parenthetical') {
+  const parts = clusterText.split(/\s*;\s*/).map(part => part.trim()).filter(Boolean);
+  const formatted = parts.map(part => formatSingleCitationPart(part, refMap, citedKeys, mode));
+
+  if (mode === 'parenthetical') {
+    const inner = formatted
+      .map(part => part.replace(/^\(/, '').replace(/\)$/, ''))
+      .join('; ');
+    return `(${inner})`;
+  }
+
+  return formatted.join('; ');
+}
+
 /**
- * Replace [@key] and [@key1; @key2] citation patterns in HTML with APA in-text citations.
+ * Replace Quarto/Pandoc citation patterns in markdown with APA-style preview text.
  * Returns { html, citedKeys } where citedKeys is the ordered set of cited keys.
  */
 function applyCitations(html, refMap) {
   const citedKeys = [];
-  const replaced = html.replace(/\[@([^\]]+)\]/g, (match, inner) => {
-    const keys = inner.split(';').map(k => k.trim().replace(/^@/, ''));
-    const parts = keys.map(key => {
-      const entry = refMap[key];
-      if (!entry) return `(${key})`;
-      if (!citedKeys.includes(key)) citedKeys.push(key);
-      return formatApaInText(entry);
-    });
-    // Merge multi-key: (Smith, 2020; Jones, 2021) — strip outer parens and rejoin
-    if (parts.length === 1) return parts[0];
-    const inner2 = parts.map(p => p.replace(/^\(|\)$/g, '')).join('; ');
-    return `(${inner2})`;
+  let replaced = html.replace(BRACKETED_CLUSTER_RE, (match, inner) => {
+    return formatCitationCluster(inner, refMap, citedKeys, 'parenthetical');
   });
+
+  replaced = replaced.replace(SEMICOLON_CLUSTER_RE, (match, lead, cluster) => {
+    return `${lead}${formatCitationCluster(cluster, refMap, citedKeys, 'parenthetical')}`;
+  });
+
+  replaced = replaced.replace(SINGLE_STANDALONE_RE, (match, lead, rawKey, locator, trailing) => {
+    const key = normalizeCitationKey(rawKey);
+    const entry = refMap[key];
+    if (!entry) {
+      return `${lead}(${key})`;
+    }
+    if (!citedKeys.includes(key)) citedKeys.push(key);
+    const formatted = locator
+      ? formatApaNarrative(entry).replace(/\)$/, `, ${locator})`)
+      : formatApaNarrative(entry);
+    return `${lead}${formatted}`;
+  });
+
   return { html: replaced, citedKeys };
 }
 

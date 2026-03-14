@@ -512,9 +512,10 @@
   outline: none;
   resize: none;
   box-sizing: border-box;
-  white-space: pre;
-  overflow-wrap: normal;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-x: hidden;
   border-radius: 8px;
 }
 

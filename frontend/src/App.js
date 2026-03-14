@@ -174,6 +174,7 @@ function App() {
   const handleOpenLocalFile = async () => {
     const result = await window.quartoReviewDesktop?.openLocalFile();
     if (!result) return;
+    setFilePath('');
     setLocalFilePath(result.filePath);
     setQmdContent(result.content);
     setIpynb(null);
@@ -183,6 +184,7 @@ function App() {
   const handleOpenStartupGuide = async () => {
     const result = await window.quartoReviewDesktop?.openStartupGuide();
     if (!result) return;
+    setFilePath('');
     setLocalFilePath(result.filePath || result.displayName || 'GUIDE.md');
     setQmdContent(result.content);
     setIpynb(null);

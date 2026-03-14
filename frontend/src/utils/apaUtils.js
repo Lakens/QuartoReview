@@ -91,6 +91,28 @@ export function formatApaInText(entryTags) {
 }
 
 /**
+ * APA 7th narrative in-text citation: Lakens (2022) / Lakens and Caldwell (2022) / Lakens et al. (2022)
+ */
+export function formatApaNarrative(entryTags) {
+  const { AUTHOR, YEAR } = entryTags || {};
+  const authors = parseAuthors(AUTHOR);
+  const year = YEAR || 'n.d.';
+
+  let authorPart;
+  if (authors.length === 0) {
+    authorPart = 'Unknown';
+  } else if (authors.length === 1) {
+    authorPart = authors[0].last;
+  } else if (authors.length === 2) {
+    authorPart = `${authors[0].last} and ${authors[1].last}`;
+  } else {
+    authorPart = `${authors[0].last} et al.`;
+  }
+
+  return `${authorPart} (${year})`;
+}
+
+/**
  * APA 7th full reference entry.
  * e.g.: Lakens, D. (2022). Improving your statistical inferences. PsyArXiv. https://doi.org/…
  */

@@ -30,6 +30,13 @@
   width: 100%;
 }
 
+.primary-fields--article {
+  gap: 0.75rem;
+  padding: 1.75rem 0 1.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #E5E7EB;
+}
+
 .additional-fields {
   margin-top: 1rem;
   border-top: 1px solid #E5E7EB;
@@ -76,6 +83,10 @@
   position: relative;
 }
 
+.primary-fields--article .property-row {
+  border-bottom: none;
+}
+
 .property-label {
   flex: 0 0 100px;
   padding: 8px 8px 8px 0;
@@ -104,6 +115,10 @@
   padding: 4px 0;
 }
 
+.primary-fields--article .property-value {
+  width: 100%;
+}
+
 .property-value input,
 .property-value textarea {
   width: 100%;
@@ -126,6 +141,13 @@
   cursor: text !important;
 }
 
+.primary-fields--article .property-value input,
+.primary-fields--article .property-value textarea {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .property-value input:hover,
 .property-value textarea:hover {
   border-color: #E5E7EB;
@@ -138,6 +160,19 @@
   border-color: #E5E7EB;
   background-color: white;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.primary-fields--article .property-value input:hover,
+.primary-fields--article .property-value textarea:hover {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.primary-fields--article .property-value input:focus,
+.primary-fields--article .property-value textarea:focus {
+  border-color: rgba(59, 130, 246, 0.25);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
 }
 
 .property-value textarea {
@@ -154,6 +189,130 @@
   font-weight: 400;
   text-align: center;
   font-size: 18px;
+}
+
+.property-row--title,
+.property-row--subtitle,
+.property-row--author,
+.property-row--affiliations,
+.property-row--date,
+.property-row--abstract {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.property-row--title .property-label,
+.property-row--subtitle .property-label,
+.property-row--author .property-label,
+.property-row--affiliations .property-label,
+.property-row--date .property-label {
+  display: none;
+}
+
+.property-row--abstract .property-label {
+  flex: none;
+  width: fit-content;
+  margin: 0 auto 0.6rem;
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #35508c;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.property-row--abstract .property-label::before {
+  display: none;
+}
+
+.property-row--title .property-value input[data-property="title"] {
+  padding: 0.35rem 1rem;
+  font-size: clamp(2rem, 4vw, 2.9rem);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: #0f172a;
+}
+
+.property-row--subtitle .property-value input[data-property="subtitle"] {
+  padding: 0.1rem 1rem 0.45rem;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  text-align: center;
+  color: #475569;
+}
+
+.property-row--author .property-value input[data-property="author"],
+.property-row--author .property-value input[data-property="authors"],
+.property-row--affiliations .property-value input[data-property="affiliations"],
+.property-row--date .property-value input[data-property="date"] {
+  padding: 0.1rem 1rem;
+  font-size: 1rem;
+  text-align: center;
+  color: #334155;
+}
+
+.property-row--abstract .property-value {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.property-row--abstract .property-value textarea[data-property="abstract"] {
+  width: 100%;
+  margin-left: 0;
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  line-height: 1.7;
+  text-align: left;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fbff 0%, #f5f8fc 100%);
+  color: #1e293b;
+}
+
+[data-theme="dark"] .primary-fields--article {
+  border-bottom-color: rgba(148, 163, 184, 0.24);
+}
+
+[data-theme="dark"] .property-row--abstract .property-label {
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfd6ff;
+}
+
+[data-theme="dark"] .primary-fields--article .property-value input,
+[data-theme="dark"] .primary-fields--article .property-value textarea {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .primary-fields--article .property-value input:hover,
+[data-theme="dark"] .primary-fields--article .property-value textarea:hover,
+[data-theme="dark"] .primary-fields--article .property-value input:focus,
+[data-theme="dark"] .primary-fields--article .property-value textarea:focus {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(148, 163, 184, 0.24);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.35);
+}
+
+[data-theme="dark"] .property-row--title .property-value input[data-property="title"] {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .property-row--subtitle .property-value input[data-property="subtitle"] {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .property-row--author .property-value input[data-property="author"],
+[data-theme="dark"] .property-row--author .property-value input[data-property="authors"],
+[data-theme="dark"] .property-row--affiliations .property-value input[data-property="affiliations"],
+[data-theme="dark"] .property-row--date .property-value input[data-property="date"] {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .property-row--abstract .property-value textarea[data-property="abstract"] {
+  background: linear-gradient(180deg, #17212f 0%, #111827 100%);
+  color: #e2e8f0;
 }
 
 /* Centered text fields */
