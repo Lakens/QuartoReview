@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
@@ -76,10 +76,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
@@ -122,8 +122,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-assets
-          dmg="$(find dist -maxdepth 1 -name '*.dmg' | head -n 1)"
-          zip="$(find dist -maxdepth 1 -name '*.zip' | head -n 1)"
+          dmg="$(find dist -name '*.dmg' | head -n 1)"
+          zip="$(find dist -name '*.zip' | head -n 1)"
           test -n "$dmg"
           test -n "$zip"
           cp "$dmg" release-assets/QuartoReview-macOS.dmg
