@@ -80,10 +80,20 @@ function getAutosaveRootPath() {
   return path.join(app.getPath('userData'), 'autosaves');
 }
 
+function getLocalBackupRootPath() {
+  return path.join(app.getPath('userData'), 'local-file-backups');
+}
+
 function ensureAutosaveRootPath() {
   const autosaveRoot = getAutosaveRootPath();
   fs.mkdirSync(autosaveRoot, { recursive: true });
   return autosaveRoot;
+}
+
+function ensureLocalBackupRootPath() {
+  const backupRoot = getLocalBackupRootPath();
+  fs.mkdirSync(backupRoot, { recursive: true });
+  return backupRoot;
 }
 
 function sanitizeFileSegment(value) {
@@ -114,6 +124,25 @@ function getDocumentBaseName(document) {
   const ext = parsed.ext || '.qmd';
   const name = sanitizeFileSegment(parsed.name || 'document');
   return { baseName: name, extension: ext };
+}
+
+function createLocalFileBackup(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+
+  const parsed = path.parse(filePath);
+  const baseName = sanitizeFileSegment(parsed.name || 'document');
+  const extension = parsed.ext || '.qmd';
+  const identity = `local-backup::${filePath}`;
+  const docHash = crypto.createHash('sha1').update(identity).digest('hex').slice(0, 12);
+  const backupDir = path.join(ensureLocalBackupRootPath(), `${baseName}__${docHash}`);
+  const backupPath = path.join(
+    backupDir,
+    `${baseName}__before-save__${formatAutosaveTimestamp()}${extension}`
+  );
+
+  fs.mkdirSync(backupDir, { recursive: true });
+  fs.copyFileSync(filePath, backupPath);
+  return backupPath;
 }
 
 function getDocumentAutosavePaths(document) {
@@ -654,8 +683,14 @@ ipcMain.handle('open-local-file', async () => {
 
 ipcMain.handle('save-local-file', async (_event, content, filePath) => {
   if (filePath && !filePath.startsWith('quarto-review://')) {
+    let backupPath = null;
+    try {
+      backupPath = createLocalFileBackup(filePath);
+    } catch (error) {
+      console.warn(`Failed to create local backup for ${filePath}:`, error.message);
+    }
     fs.writeFileSync(filePath, content, 'utf8');
-    return { filePath };
+    return { filePath, backupPath };
   }
   // No path: ask where to save
   const { canceled, filePath: chosenPath } = await dialog.showSaveDialog({

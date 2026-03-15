@@ -685,6 +685,10 @@ const EditorWrapper = ({
     const repo = selectedRepo ? `${selectedRepo.owner.login}/${selectedRepo.name}` : null;
     const loadedFilePath = filePath;
 
+    if (showSource) {
+      setRawSource(qmdContent);
+    }
+
     requestAnimationFrame(() => {
       try {
         qmdToTiptapDoc(qmdContent, editor);

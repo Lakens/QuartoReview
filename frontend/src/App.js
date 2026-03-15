@@ -233,7 +233,11 @@ function App() {
         filePath: result.filePath,
         displayName: result.filePath.split(/[\\/]/).pop(),
       });
-      setSaveMessage('File saved');
+      setSaveMessage(
+        result.backupPath
+          ? `File saved. Backup created in QuartoReview local backups.`
+          : 'File saved'
+      );
       setTimeout(() => setSaveMessage(''), 3000);
     }
   };
