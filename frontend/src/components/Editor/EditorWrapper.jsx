@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FaSun, FaMoon, FaEdit, FaShare, FaBars, FaSpellCheck } from 'react-icons/fa';
-import ShareModal from '../Share/ShareModal';
+import { FaSun, FaMoon, FaEdit, FaBars, FaSpellCheck } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   subscribePackageStatus,
@@ -144,7 +143,6 @@ const EditorWrapper = ({
   const [inlineRCache, setInlineRCache] = useState(() => getInlineRCache());
   const [isRenderingInlineR, setIsRenderingInlineR] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [rawSource, setRawSource] = useState('');
   const [showMenu, setShowMenu] = useState(false);
@@ -967,16 +965,6 @@ const EditorWrapper = ({
               <span className="hdr-dark-thumb" />
             </span>
           </button>
-          {!localFilePath && (
-            <button
-              className="hdr-btn hdr-share-btn"
-              onClick={() => setIsShareModalOpen(true)}
-              title="Share document"
-            >
-              <FaShare /> Share
-            </button>
-          )}
-
           {/* App menu — top right */}
           <div className="app-menu" ref={menuRef}>
             <button
@@ -1110,13 +1098,6 @@ const EditorWrapper = ({
           </div>
         )}
       </main>
-
-      <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        repository={selectedRepo?.fullName}
-        filePath={filePath}
-      />
 
       <HarperPopover
         match={harperMatch}

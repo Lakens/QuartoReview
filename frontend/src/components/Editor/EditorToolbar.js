@@ -513,7 +513,7 @@ const EditorToolbar = ({
 
         {/* Source toggle */}
         <button
-          className={`tb-action-btn${showSource ? ' tb-action-btn--active' : ''}`}
+          className={`tb-insert-btn${showSource ? ' tb-insert-btn--active' : ''}`}
           onClick={onToggleSource}
           title="Toggle raw source"
         >
@@ -522,7 +522,7 @@ const EditorToolbar = ({
 
         {/* Preview */}
         <button
-          className={`tb-action-btn${showPreview ? ' tb-action-btn--active' : ''}`}
+          className={`tb-insert-btn${showPreview ? ' tb-insert-btn--active' : ''}`}
           onClick={onTogglePreview}
           title="Toggle Preview"
         >
@@ -533,7 +533,7 @@ const EditorToolbar = ({
 
         {!showFindBar ? (
           <button
-            className="tb-action-btn"
+            className="tb-insert-btn"
             onClick={onOpenFind}
             title="Find in document (Ctrl+F)"
           >

@@ -99,10 +99,6 @@ Track changes records all edits as suggestions that can be accepted or rejected 
     
 4.  Turn off track changes by clicking the button again. New edits will no longer be marked.
 
-### Sharing (GitHub mode only)
-
-Click the **Share** button in the toolbar to get a shareable link to the document on GitHub, or to invite collaborators by GitHub username.
-
 * * *
 
 ## 3\. Adding References
@@ -233,7 +229,6 @@ The toolbar runs across the top of the editor and contains the main controls:
 | Comment | Add a comment to selected text |
 | Run / Run All | Execute R chunks |
 | Diff | Open the diff/version comparison view |
-| Share | (GitHub mode) Share the document |
 | Dark mode | Toggle between light and dark theme |
 | Menu | Hamburger menu: Open local file, Set up GitHub, Feedback |
 

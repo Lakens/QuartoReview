@@ -68,19 +68,29 @@
 }
 
 .diff-download-btn {
-  padding: 4px 10px;
-  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 0.73rem;
   font-weight: 600;
-  border: none;
-  border-radius: var(--radius-sm, 5px);
-  background: var(--color-primary);
-  color: #fff;
+  border: 1.5px solid var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-active);
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
-.diff-download-btn:hover { background: var(--color-primary-hover); }
+.diff-download-btn:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
 
 .diff-iframe {
   flex: 1;
