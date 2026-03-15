@@ -81,7 +81,8 @@ function annotate(oldText, newText) {
 
 // ── HTML renderer (JS port of the R render_qmd_worddiff_html function) ─────
 
-export function renderDiffHtml(rawOldText, rawNewText, title = 'Document diff') {
+export function renderDiffHtml(rawOldText, rawNewText, title = 'Document diff', options = {}) {
+  const { darkMode = false } = options;
   // Strip editor-internal spans before diffing
   const oldText   = stripEditorAnnotations(rawOldText);
   const newText   = stripEditorAnnotations(rawNewText);
@@ -135,19 +136,32 @@ export function renderDiffHtml(rawOldText, rawNewText, title = 'Document diff') 
   if (inCode) flushCode();
 
   const css = `
-:root{--ins:#eaffea;--del:#ffecec;--codebg:#f7f7f7;--metabg:#f3f3f3;--bdr:#e8e8e8;}
-body{font-family:'Times New Roman',Times,serif;margin:1.2rem 1.8rem;max-width:1100px;}
+:root{
+  --bg:${darkMode ? '#0f1720' : '#ffffff'};
+  --surface:${darkMode ? '#16202d' : '#ffffff'};
+  --text:${darkMode ? '#e5edf7' : '#111827'};
+  --muted:${darkMode ? '#9fb0c6' : '#475569'};
+  --ins:${darkMode ? 'rgba(34, 197, 94, 0.18)' : '#eaffea'};
+  --del:${darkMode ? 'rgba(248, 113, 113, 0.18)' : '#ffecec'};
+  --codebg:${darkMode ? '#111827' : '#f7f7f7'};
+  --metabg:${darkMode ? '#1b2838' : '#f3f3f3'};
+  --bdr:${darkMode ? 'rgba(148, 163, 184, 0.2)' : '#e8e8e8'};
+  --inline:${darkMode ? '#1e293b' : '#f1f1f1'};
+}
+html,body{background:var(--bg);}
+body{font-family:'Times New Roman',Times,serif;margin:1.2rem 1.8rem;max-width:1100px;color:var(--text);}
 h1,h2,h3,h4,h5,h6{margin:.9em 0 .4em;line-height:1.2;}
 h1{font-size:2em;}h2{font-size:1.6em;}h3{font-size:1.35em;}
 h4{font-size:1.2em;}h5{font-size:1.05em;}h6{font-size:1em;}
-.line{white-space:pre-wrap;line-height:1.6;}
-.meta{background:var(--metabg);border:1px solid var(--bdr);padding:4px 8px;border-radius:4px;margin:4px 0;font-size:.85em;}
-.ins{background:var(--ins);}
-.del{background:var(--del);text-decoration:line-through;}
+.line{white-space:pre-wrap;line-height:1.6;color:var(--text);}
+.meta{background:var(--metabg);border:1px solid var(--bdr);padding:4px 8px;border-radius:4px;margin:4px 0;font-size:.85em;color:var(--muted);}
+.ins{background:var(--ins);color:var(--text);}
+.del{background:var(--del);text-decoration:line-through;color:var(--text);}
 pre.codeblock{white-space:pre-wrap;font-family:'Courier New',Courier,monospace;
   background:var(--codebg);border:1px solid var(--bdr);padding:10px 14px;
-  margin:10px 0;border-radius:6px;line-height:1.35;}
-code.icode{font-family:'Courier New',Courier,monospace;background:#f1f1f1;padding:0 3px;border-radius:3px;}
+  margin:10px 0;border-radius:6px;line-height:1.35;color:var(--text);}
+code.icode{font-family:'Courier New',Courier,monospace;background:var(--inline);padding:0 3px;border-radius:3px;color:var(--text);}
+a{color:${darkMode ? '#93c5fd' : '#2563eb'};}
 `;
 
   return [

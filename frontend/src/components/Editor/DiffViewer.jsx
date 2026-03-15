@@ -5,7 +5,7 @@ import { getFileHistory, getFileAtCommit } from '../../utils/api';
 import '../../styles/components/editor/_diffviewer.css';
 
 // mode: 'since' = commit vs current editor  |  'in' = commit vs its parent
-const DiffViewer = ({ editor, selectedRepo, filePath }) => {
+const DiffViewer = ({ editor, selectedRepo, filePath, darkMode = false }) => {
   const [commits, setCommits]           = useState([]);
   const [selectedSha, setSelectedSha]   = useState('');
   const [mode, setMode]                 = useState('since'); // 'since' | 'in'
@@ -52,7 +52,7 @@ const DiffViewer = ({ editor, selectedRepo, filePath }) => {
         const label = commit
           ? `${new Date(commit.date).toLocaleDateString()} — ${commit.message}`
           : selectedSha.slice(0, 7);
-        setDiffHtml(renderDiffHtml(oldContent, currentContent, `Changes since: ${label}`));
+        setDiffHtml(renderDiffHtml(oldContent, currentContent, `Changes since: ${label}`, { darkMode }));
       });
 
     const doIn = () => {
@@ -64,7 +64,7 @@ const DiffViewer = ({ editor, selectedRepo, filePath }) => {
           const label = commit
             ? `${new Date(commit.date).toLocaleDateString()} — ${commit.message}`
             : selectedSha.slice(0, 7);
-          setDiffHtml(renderDiffHtml('', content, `Changes in: ${label}`));
+          setDiffHtml(renderDiffHtml('', content, `Changes in: ${label}`, { darkMode }));
         });
       }
       return Promise.all([
@@ -75,7 +75,7 @@ const DiffViewer = ({ editor, selectedRepo, filePath }) => {
         const label = commit
           ? `${new Date(commit.date).toLocaleDateString()} — ${commit.message}`
           : selectedSha.slice(0, 7);
-        setDiffHtml(renderDiffHtml(parentContent, commitContent, `Changes in: ${label}`));
+        setDiffHtml(renderDiffHtml(parentContent, commitContent, `Changes in: ${label}`, { darkMode }));
       });
     };
 
@@ -84,7 +84,7 @@ const DiffViewer = ({ editor, selectedRepo, filePath }) => {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [selectedSha, mode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedSha, mode, darkMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const downloadHtml = () => {
     const blob = new Blob([diffHtml], { type: 'text/html' });
@@ -117,7 +117,7 @@ const DiffViewer = ({ editor, selectedRepo, filePath }) => {
   }
 
   return (
-    <div className="diff-viewer">
+    <div className={`diff-viewer${darkMode ? ' diff-viewer--dark' : ''}`}>
       <div className="diff-viewer-toolbar">
         {/* Mode toggle */}
         <div className="diff-mode-toggle">

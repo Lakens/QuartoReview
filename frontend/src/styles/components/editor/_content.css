@@ -519,9 +519,19 @@
   border-radius: 8px;
 }
 
+.source-editor::selection {
+  background: rgba(250, 204, 21, 0.48);
+  color: inherit;
+}
+
 [data-theme="dark"] .source-editor {
   color: var(--text-primary, #e0e0e0);
   background: var(--editor-bg, #1e1e1e);
+}
+
+[data-theme="dark"] .source-editor::selection {
+  background: rgba(250, 204, 21, 0.38);
+  color: inherit;
 }
 
 .notification {
@@ -623,6 +633,17 @@
   color: #666;
   margin-right: 8px;
   font-weight: 500;
+}
+
+.search-highlight {
+  background: rgba(250, 204, 21, 0.24);
+  border-radius: 2px;
+  box-shadow: inset 0 -1px 0 rgba(202, 138, 4, 0.18);
+}
+
+.search-highlight--active {
+  background: rgba(250, 204, 21, 0.48);
+  box-shadow: inset 0 -1px 0 rgba(161, 98, 7, 0.3);
 }
 
 .references-section {
@@ -925,4 +946,54 @@
 [data-theme="dark"] .preview-pane h3,
 [data-theme="dark"] .preview-pane h4 {
   color: var(--color-text);
+}
+
+[data-theme="dark"] .search-highlight {
+  background: rgba(250, 204, 21, 0.2);
+  box-shadow: inset 0 -1px 0 rgba(245, 158, 11, 0.24);
+}
+
+[data-theme="dark"] .search-highlight--active {
+  background: rgba(250, 204, 21, 0.38);
+  box-shadow: inset 0 -1px 0 rgba(245, 158, 11, 0.34);
+}
+
+[data-theme="dark"] .preview-title {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .preview-authors {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .preview-abstract {
+  background: linear-gradient(180deg, #17212f 0%, #111827 100%);
+  border-left-color: #60a5fa;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .preview-abstract strong,
+[data-theme="dark"] .preview-abstract p {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .preview-refs-divider {
+  border-top-color: rgba(148, 163, 184, 0.24);
+}
+
+[data-theme="dark"] .preview-refs-heading,
+[data-theme="dark"] .preview-ref-entry,
+[data-theme="dark"] .preview-pane blockquote,
+[data-theme="dark"] .preview-pane th,
+[data-theme="dark"] .preview-pane td {
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .preview-pane table th {
+  background: #1e293b;
+}
+
+[data-theme="dark"] .preview-pane table th,
+[data-theme="dark"] .preview-pane table td {
+  border-color: rgba(148, 163, 184, 0.24);
 }

@@ -103,6 +103,41 @@
 /* ── Dark mode ───────────────────────────────────────────────────────────── */
 
 [data-theme="dark"] .diff-iframe {
-  background: #1e1e1e;
-  filter: invert(1) hue-rotate(180deg);
+  background: #0f1720;
+}
+
+[data-theme="dark"] .diff-viewer {
+  background: #111a25;
+  border-left-color: rgba(148, 163, 184, 0.16);
+}
+
+[data-theme="dark"] .diff-viewer-toolbar {
+  background: #16202d;
+  border-bottom-color: rgba(148, 163, 184, 0.16);
+}
+
+[data-theme="dark"] .diff-mode-toggle,
+[data-theme="dark"] .diff-mode-btn + .diff-mode-btn,
+[data-theme="dark"] .diff-commit-select {
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+[data-theme="dark"] .diff-mode-btn {
+  background: #111827;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .diff-viewer-label,
+[data-theme="dark"] .diff-loading,
+[data-theme="dark"] .diff-unsupported {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .diff-commit-select {
+  background: #111827;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .diff-error {
+  color: #fca5a5;
 }

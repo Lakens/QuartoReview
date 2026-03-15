@@ -14,8 +14,10 @@ import {
   setFileStatusError,
 } from '../../utils/webRSingleton';
 import { fetchNotebooksInRepo, fetchRawFile } from '../../utils/api';
+import { Extension } from '@tiptap/core';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { DecorationSet } from 'prosemirror-view';
+import { Decoration, DecorationSet } from 'prosemirror-view';
+import { Plugin, PluginKey } from 'prosemirror-state';
 import StarterKit from '@tiptap/starter-kit';
 import Mathematics from 'tiptap-math';
 import Underline from '@tiptap/extension-underline';
@@ -43,6 +45,46 @@ import { formatApaReference } from '../../utils/apaUtils';
 import { HarperExtension, harperKey } from './HarperExtension';
 import { HarperPopover } from './HarperPopover';
 import DiffViewer from './DiffViewer';
+
+const searchHighlightKey = new PluginKey('searchHighlight');
+
+const SearchHighlightExtension = Extension.create({
+  name: 'searchHighlight',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: searchHighlightKey,
+        state: {
+          init: () => DecorationSet.empty,
+          apply(tr, old) {
+            const meta = tr.getMeta(searchHighlightKey);
+            if (meta?.clear) {
+              return DecorationSet.empty;
+            }
+            if (meta?.matches) {
+              return DecorationSet.create(
+                tr.doc,
+                meta.matches.map((match, index) =>
+                  Decoration.inline(match.from, match.to, {
+                    class: index === meta.activeIndex
+                      ? 'search-highlight search-highlight--active'
+                      : 'search-highlight',
+                  })
+                )
+              );
+            }
+            return tr.docChanged ? old.map(tr.mapping, tr.doc) : old;
+          },
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state);
+          },
+        },
+      }),
+    ];
+  },
+});
 
 const ReferencesList = ({ references }) => {
   if (!references || references.length === 0) return null;
@@ -108,11 +150,16 @@ const EditorWrapper = ({
   const [showMenu, setShowMenu] = useState(false);
   const [appVersion, setAppVersion] = useState('');
   const [commentsRefreshKey, setCommentsRefreshKey] = useState(0);
+  const [showFindBar, setShowFindBar] = useState(false);
+  const [findQuery, setFindQuery] = useState('');
+  const [findMatches, setFindMatches] = useState([]);
+  const [activeFindMatchIndex, setActiveFindMatchIndex] = useState(0);
   const [spellcheckEnabled, setSpellcheckEnabled] = useState(() => {
     const stored = window.localStorage.getItem('harper-spellcheck-enabled');
     return stored === null ? true : stored === 'true';
   });
   const menuRef = useRef(null);
+  const sourceEditorRef = useRef(null);
   const spellcheckEnabledRef = useRef(spellcheckEnabled);
   const lastEditAtRef = useRef(Date.now());
   const lastAutosaveAtRef = useRef(0);
@@ -238,6 +285,7 @@ const EditorWrapper = ({
       onMatchClick: (match, event) => harperMatchClickRef.current?.(match, event),
       isEnabled: () => spellcheckEnabledRef.current,
     }),
+    SearchHighlightExtension,
   ];
 
   const editor = useEditor({
@@ -274,6 +322,190 @@ const EditorWrapper = ({
       enabled: spellcheckEnabled,
     }));
   }, [editor, spellcheckEnabled]);
+
+  useEffect(() => {
+    if (!editor?.view) return;
+    editor.view.dispatch(editor.state.tr.setMeta(searchHighlightKey, {
+      matches: findMatches,
+      activeIndex: activeFindMatchIndex,
+    }));
+  }, [editor, findMatches, activeFindMatchIndex]);
+
+  const focusFindInput = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      const input = document.querySelector('.tb-find-input');
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    });
+  }, []);
+
+  const collectSourceMatches = useCallback((query) => {
+    const textarea = sourceEditorRef.current;
+    if (!textarea || !query) return [];
+
+    const haystack = textarea.value.toLowerCase();
+    const needle = query.toLowerCase();
+    const matches = [];
+    let startIndex = 0;
+    while (startIndex < haystack.length) {
+      const foundAt = haystack.indexOf(needle, startIndex);
+      if (foundAt === -1) break;
+      matches.push({ from: foundAt, to: foundAt + query.length });
+      startIndex = foundAt + Math.max(query.length, 1);
+    }
+
+    return matches;
+  }, []);
+
+  const findInSource = useCallback((query, direction = 'next') => {
+    const textarea = sourceEditorRef.current;
+    const matches = collectSourceMatches(query);
+
+    if (matches.length === 0) return [];
+
+    const currentStart = textarea.selectionStart;
+    let nextIndex = matches.findIndex(match =>
+      direction === 'prev' ? match.from >= currentStart : match.from > currentStart
+    );
+
+    if (direction === 'prev') {
+      nextIndex = -1;
+      for (let i = matches.length - 1; i >= 0; i -= 1) {
+        if (matches[i].from < currentStart) {
+          nextIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (nextIndex === -1) {
+      nextIndex = direction === 'prev' ? matches.length - 1 : 0;
+    }
+
+    const match = matches[nextIndex];
+    textarea.setSelectionRange(match.from, match.to);
+    textarea.scrollTop = textarea.scrollHeight * (match.from / Math.max(textarea.value.length, 1));
+    setActiveFindMatchIndex(nextIndex);
+    return matches;
+  }, [collectSourceMatches]);
+
+  const collectEditorMatches = useCallback((query) => {
+    if (!editor || !query) return [];
+
+    const matches = [];
+    const lowerQuery = query.toLowerCase();
+    editor.state.doc.descendants((node, pos) => {
+      if (!node.isText || !node.text) return;
+      const haystack = node.text.toLowerCase();
+      let searchIndex = 0;
+      while (searchIndex < haystack.length) {
+        const foundAt = haystack.indexOf(lowerQuery, searchIndex);
+        if (foundAt === -1) break;
+        matches.push({
+          from: pos + foundAt,
+          to: pos + foundAt + query.length,
+        });
+        searchIndex = foundAt + Math.max(query.length, 1);
+      }
+    });
+
+    return matches;
+  }, [editor]);
+
+  const findInEditor = useCallback((query, direction = 'next') => {
+    const matches = collectEditorMatches(query);
+
+    if (matches.length === 0) return [];
+
+    const currentFrom = editor.state.selection.from;
+    let nextIndex;
+
+    if (direction === 'prev') {
+      nextIndex = -1;
+      for (let i = matches.length - 1; i >= 0; i -= 1) {
+        if (matches[i].from < currentFrom) {
+          nextIndex = i;
+          break;
+        }
+      }
+      if (nextIndex === -1) nextIndex = matches.length - 1;
+    } else {
+      nextIndex = matches.findIndex(match => match.from > currentFrom);
+      if (nextIndex === -1) nextIndex = 0;
+    }
+
+    const match = matches[nextIndex];
+    editor.commands.setTextSelection({ from: match.from, to: match.to });
+    setActiveFindMatchIndex(nextIndex);
+    return matches;
+  }, [collectEditorMatches, editor]);
+
+  const runFind = useCallback((query, direction = 'next') => {
+    if (!query) {
+      setFindMatches([]);
+      setActiveFindMatchIndex(0);
+      return;
+    }
+
+    const matches = showSource
+      ? findInSource(query, direction)
+      : findInEditor(query, direction);
+
+    setFindMatches(matches);
+    if (matches.length === 0) {
+      setActiveFindMatchIndex(0);
+    }
+  }, [findInEditor, findInSource, showSource]);
+
+  const handleFindQueryChange = useCallback((query) => {
+    setFindQuery(query);
+    setFindMatches([]);
+    setActiveFindMatchIndex(0);
+  }, []);
+
+  useEffect(() => {
+    if (!showFindBar || !findQuery) {
+      setFindMatches([]);
+      setActiveFindMatchIndex(0);
+      return;
+    }
+
+    const matches = showSource
+      ? collectSourceMatches(findQuery)
+      : collectEditorMatches(findQuery);
+    setFindMatches(matches);
+    setActiveFindMatchIndex(matches.length > 0 ? 0 : 0);
+  }, [showFindBar, showSource, findQuery, collectEditorMatches, collectSourceMatches]);
+
+  useEffect(() => {
+    if (showSource || !editor || findMatches.length === 0) return;
+
+    window.requestAnimationFrame(() => {
+      const activeHighlight = editor.view.dom.querySelector('.search-highlight--active');
+      if (activeHighlight?.scrollIntoView) {
+        activeHighlight.scrollIntoView({ block: 'center', inline: 'nearest' });
+      } else {
+        editor.view.dom.scrollIntoView({ block: 'center', inline: 'nearest' });
+      }
+    });
+  }, [editor, findMatches, activeFindMatchIndex, showSource]);
+
+  useEffect(() => {
+    const handleFindShortcut = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        setShowFindBar(true);
+        focusFindInput();
+      } else if (event.key === 'Escape') {
+        setShowFindBar(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleFindShortcut);
+    return () => window.removeEventListener('keydown', handleFindShortcut);
+  }, [focusFindInput]);
 
   const handleRenderInlineR = useCallback(async () => {
     if (!editor || isRenderingInlineR) return;
@@ -813,6 +1045,18 @@ const EditorWrapper = ({
             isRenderingInlineR={isRenderingInlineR}
             showSource={showSource}
             onToggleSource={handleToggleSource}
+            showFindBar={showFindBar}
+            findQuery={findQuery}
+            findCount={findMatches.length}
+            activeFindMatchIndex={activeFindMatchIndex}
+            onOpenFind={() => {
+              setShowFindBar(true);
+              focusFindInput();
+            }}
+            onCloseFind={() => setShowFindBar(false)}
+            onFindQueryChange={handleFindQueryChange}
+            onFindNext={() => runFind(findQuery, 'next')}
+            onFindPrev={() => runFind(findQuery, 'prev')}
           />
         )}
       </header>
@@ -839,6 +1083,7 @@ const EditorWrapper = ({
                   <div className={editorContentClassName}>
                     {showSource && (
                       <textarea
+                        ref={sourceEditorRef}
                         className="source-editor"
                         value={rawSource}
                         onChange={e => setRawSource(e.target.value)}
@@ -858,7 +1103,7 @@ const EditorWrapper = ({
                   </div>
                 </div>
               </div>
-              {showDiff    && <DiffViewer editor={editor} selectedRepo={selectedRepo} filePath={filePath} />}
+              {showDiff    && <DiffViewer editor={editor} selectedRepo={selectedRepo} filePath={filePath} darkMode={darkMode} />}
               {showPreview && !showDiff && <PreviewPane editor={editor} references={references || referenceManager?.getReferences()} inlineRCache={inlineRCache} filePath={filePath} />}
               {!showPreview && !showDiff && editor && <CommentsSidebar editor={editor} refreshKey={commentsRefreshKey} />}
             </div>

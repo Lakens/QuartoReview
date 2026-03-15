@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 
 let mainWindow = null;
+let splashWindow = null;
 let backendProcess = null;
 let quitting = false;
 
@@ -35,6 +36,10 @@ function getFrontendDistPath() {
 
 function getDesktopEnvPath() {
   return path.join(app.getPath('userData'), '.env');
+}
+
+function getAppIconPath() {
+  return path.join(__dirname, 'icon.png');
 }
 
 function getBackendPidPath() {
@@ -492,6 +497,7 @@ function createMainWindow() {
     minHeight: 720,
     show: false,
     title: 'QuartoReview',
+    icon: getAppIconPath(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -528,9 +534,61 @@ function createMainWindow() {
   return mainWindow;
 }
 
+function createSplashWindow() {
+  if (splashWindow) return splashWindow;
+
+  splashWindow = new BrowserWindow({
+    width: 420,
+    height: 320,
+    show: false,
+    frame: false,
+    transparent: false,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    movable: true,
+    center: true,
+    backgroundColor: '#f5f7fb',
+    title: 'QuartoReview',
+    icon: getAppIconPath(),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  splashWindow.setMenuBarVisibility(false);
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'), {
+    query: { version: app.getVersion() },
+  });
+  splashWindow.once('ready-to-show', () => {
+    if (!IS_SMOKE_TEST && splashWindow) {
+      splashWindow.show();
+    }
+  });
+  splashWindow.on('closed', () => {
+    splashWindow = null;
+  });
+
+  return splashWindow;
+}
+
+function closeSplashWindow() {
+  if (!splashWindow || splashWindow.isDestroyed()) {
+    splashWindow = null;
+    return;
+  }
+
+  splashWindow.close();
+  splashWindow = null;
+}
+
 async function launchApp() {
   // GitHub setup is now optional — available from the in-app menu.
   // The app launches regardless of whether a token has been configured.
+  createSplashWindow();
   await spawnBackend();
   await waitForBackendHealth(
     backendProcess.__quartoReviewPort,
@@ -542,6 +600,7 @@ async function launchApp() {
 
   const window = createMainWindow();
   await window.loadURL(startUrl);
+  closeSplashWindow();
 
   if (IS_SMOKE_TEST) {
     setTimeout(() => exitForSmokeTest(0), 1500);
@@ -736,6 +795,7 @@ app.whenReady().then(async () => {
     await launchApp();
   } catch (error) {
     process.exitCode = 1;
+    closeSplashWindow();
     if (IS_SMOKE_TEST) {
       exitForSmokeTest(1);
       return;

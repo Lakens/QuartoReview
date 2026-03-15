@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   FaBold, FaItalic, FaUnderline, FaStrikethrough,
   FaListUl, FaListOl, FaUndo, FaRedo,
-  FaHighlighter, FaImage, FaLink,
+  FaHighlighter, FaImage, FaLink, FaSearch, FaChevronUp, FaChevronDown, FaTimes,
   FaTable, FaBookOpen
 } from 'react-icons/fa';
 import { BiCodeBlock } from 'react-icons/bi';
@@ -14,7 +14,28 @@ import { zoteroPickReference } from '../../utils/api';
 import bibtexParse from 'bibtex-parser-js';
 import { formatApaInText } from '../../utils/apaUtils';
 
-const EditorToolbar = ({ editor, onToggleComments, referenceManager, showPreview, onTogglePreview, showDiff, onToggleDiff, onRenderInlineR, isRenderingInlineR, showSource, onToggleSource }) => {
+const EditorToolbar = ({
+  editor,
+  onToggleComments,
+  referenceManager,
+  showPreview,
+  onTogglePreview,
+  showDiff,
+  onToggleDiff,
+  onRenderInlineR,
+  isRenderingInlineR,
+  showSource,
+  onToggleSource,
+  showFindBar,
+  findQuery,
+  findCount,
+  activeFindMatchIndex,
+  onOpenFind,
+  onCloseFind,
+  onFindQueryChange,
+  onFindNext,
+  onFindPrev,
+}) => {
   const [showHeadingMenu, setShowHeadingMenu] = useState(false);
   const [showTextColorMenu, setShowTextColorMenu] = useState(false);
   const [showBgColorMenu, setShowBgColorMenu] = useState(false);
@@ -507,6 +528,52 @@ const EditorToolbar = ({ editor, onToggleComments, referenceManager, showPreview
         >
           Preview
         </button>
+
+        <div className="tb-sep" />
+
+        {!showFindBar ? (
+          <button
+            className="tb-action-btn"
+            onClick={onOpenFind}
+            title="Find in document (Ctrl+F)"
+          >
+            <FaSearch /> Find
+          </button>
+        ) : (
+          <div className="tb-find-bar">
+            <FaSearch className="tb-find-icon" />
+            <input
+              className="tb-find-input"
+              type="text"
+              placeholder="Find in document"
+              value={findQuery}
+              onChange={(e) => onFindQueryChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (e.shiftKey) onFindPrev();
+                  else onFindNext();
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  onCloseFind();
+                }
+              }}
+            />
+            <span className="tb-find-count">
+              {findCount === 0 || !findQuery ? '0' : `${activeFindMatchIndex + 1} of ${findCount}`}
+            </span>
+            <button className="toolbar-btn" onClick={onFindPrev} title="Previous match">
+              <FaChevronUp />
+            </button>
+            <button className="toolbar-btn" onClick={onFindNext} title="Next match">
+              <FaChevronDown />
+            </button>
+            <button className="toolbar-btn" onClick={onCloseFind} title="Close find">
+              <FaTimes />
+            </button>
+          </div>
+        )}
 
       </div>
     </div>

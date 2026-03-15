@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuartoReview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: rgba(148, 163, 184, 0.28);
+      --accent: #1d4ed8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top, rgba(37, 99, 235, 0.08), transparent 44%),
+        linear-gradient(180deg, #fbfcff 0%, var(--bg) 100%);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+    }
+
+    .splash {
+      width: 100%;
+      height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 340px;
+      padding: 28px 28px 24px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    .logo {
+      width: 84px;
+      height: 84px;
+      display: block;
+      margin: 0 auto 18px;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 20px rgba(29, 78, 216, 0.12));
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.55rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .version {
+      margin-top: 6px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .loading {
+      margin-top: 18px;
+      font-size: 0.98rem;
+      color: var(--muted);
+    }
+
+    .dots::after {
+      content: "";
+      animation: dots 1.4s infinite steps(4, end);
+    }
+
+    .bar {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      margin-top: 18px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.22);
+    }
+
+    .bar::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 -35%;
+      width: 35%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #60a5fa 0%, var(--accent) 100%);
+      animation: sweep 1.35s ease-in-out infinite;
+    }
+
+    @keyframes sweep {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(385%); }
+    }
+
+    @keyframes dots {
+      0% { content: ""; }
+      25% { content: "."; }
+      50% { content: ".."; }
+      75% { content: "..."; }
+      100% { content: ""; }
+    }
+  </style>
+</head>
+<body>
+  <main class="splash">
+    <section class="card" aria-label="QuartoReview loading screen">
+      <img class="logo" src="./icon.png" alt="QuartoReview logo" />
+      <h1>QuartoReview</h1>
+      <div class="version">Version <span id="version">loading</span></div>
+      <div class="loading">Loading the editor<span class="dots"></span></div>
+      <div class="bar" aria-hidden="true"></div>
+    </section>
+  </main>
+  <script>
+    const version = new URLSearchParams(window.location.search).get('version') || '...';
+    document.getElementById('version').textContent = version;
+  </script>
+</body>
+</html>
