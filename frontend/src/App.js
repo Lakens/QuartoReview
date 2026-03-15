@@ -193,6 +193,8 @@ function App() {
     setQmdContent(recoveredContent);
     setIpynb(null);
     setSelectedRepo(null);
+    setReferenceManager(null);
+    setReferences([]);
     setActiveDocument(document);
   };
 
@@ -210,6 +212,8 @@ function App() {
     setQmdContent(recoveredContent);
     setIpynb(null);
     setSelectedRepo(null);
+    setReferenceManager(null);
+    setReferences([]);
     setActiveDocument(document);
   };
 
@@ -217,6 +221,8 @@ function App() {
     setLocalFilePath(null);
     setQmdContent(null);
     setIpynb(null);
+    setReferenceManager(null);
+    setReferences([]);
     setActiveDocument(null);
   };
 

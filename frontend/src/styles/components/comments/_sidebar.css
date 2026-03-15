@@ -60,12 +60,15 @@
   display: flex;
   flex-direction: column;
   background: rgb(248, 248, 248);
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 .comments-container {
-  flex: 1;
   padding: 16px;
   position: relative;
+  min-height: 100%;
 }
 
 /* Basic comment styling */

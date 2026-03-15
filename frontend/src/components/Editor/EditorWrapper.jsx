@@ -601,14 +601,19 @@ const EditorWrapper = ({
           const repository = `${selectedRepo.owner.login}/${selectedRepo.name}`;
           const notebookList = await fetchNotebooksInRepo(repository);
           setNotebooks(notebookList);
-          // Just populate the dropdown; don't auto-load
-          if (!filePath && notebookList.length > 0) {
+          // When switching repositories, reset the selected file to the first available file.
+          if (notebookList.length > 0) {
             setFilePath(notebookList[0]);
+          } else {
+            setFilePath('');
           }
         } catch (err) {
           setError('Failed to load notebooks');
           console.error('Error loading notebooks:', err);
         }
+      } else {
+        setNotebooks([]);
+        setFilePath('');
       }
     };
     loadNotebooks();
@@ -667,6 +672,10 @@ const EditorWrapper = ({
 
   useEffect(() => {
     if (editor && ipynb) {
+      if (showSource) {
+        setShowSource(false);
+        setRawSource('');
+      }
       // Use requestAnimationFrame to schedule the update outside of React's rendering cycle
       requestAnimationFrame(() => {
         try {

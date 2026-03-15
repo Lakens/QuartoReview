@@ -6,6 +6,7 @@ import '../../styles/components/comments/_sidebar.css';
 
 export const CommentsSidebar = ({ editor, refreshKey = 0 }) => {
   const [comments, setComments] = useState([]);
+  const [commentsHeight, setCommentsHeight] = useState(0);
   const [userThemes, setUserThemes] = useState(() => {
     // Initialize from localStorage if available
     const savedThemes = localStorage.getItem('userThemes');
@@ -41,9 +42,10 @@ export const CommentsSidebar = ({ editor, refreshKey = 0 }) => {
     if (!editor) return [];
     const docComments = new Map(); // Use Map to ensure unique comments
     const editorView = editor.view;
-    const editorContainer = editorView.dom.closest('.editor-content-container');
-    const containerRect = editorContainer?.getBoundingClientRect();
-    const scrollTop = editorContainer?.scrollTop || 0;
+    const scrollContainer = editorView.dom.closest('.editor-main');
+    const contentContainer = editorView.dom.closest('.editor-content-container');
+    const contentRect = contentContainer?.getBoundingClientRect();
+    const scrollTop = scrollContainer?.scrollTop || 0;
 
     console.log('Searching for comments in document...');
 
@@ -62,11 +64,12 @@ export const CommentsSidebar = ({ editor, refreshKey = 0 }) => {
             }
             
             const domPos = editorView.coordsAtPos(pos);
-            if (domPos && containerRect) {
-              // Calculate position relative to the comments container
-              const relativeTop = domPos.top - containerRect.top + scrollTop;
-              const commentHeight = 100; // Approximate height of a comment
-              const adjustedTop = relativeTop - (commentHeight / 2); // Center the comment vertically
+            const anchorRect = markElement?.getBoundingClientRect() || domPos;
+            if (anchorRect && contentRect) {
+              // Position comments relative to the full editor content, not the viewport,
+              // and align them near the top of the marked text rather than centering them.
+              const relativeTop = anchorRect.top - contentRect.top + scrollTop;
+              const adjustedTop = Math.max(relativeTop - 8, 0);
               
               console.log('Comment position:', { top: adjustedTop, exactTop: domPos.top });
               
@@ -155,6 +158,16 @@ export const CommentsSidebar = ({ editor, refreshKey = 0 }) => {
       const docComments = getCommentsFromDoc();
       console.log('Comments updated:', docComments);
       setComments(docComments);
+      const maxBottom = docComments.reduce((currentMax, comment) => {
+        const estimatedBottom = comment.top + comment.verticalOffset + 132;
+        return Math.max(currentMax, estimatedBottom);
+      }, 0);
+      setCommentsHeight(maxBottom);
+
+      const scrollContainer = editor.view.dom.closest('.editor-main');
+      if (sidebarRef.current && scrollContainer) {
+        sidebarRef.current.scrollTop = scrollContainer.scrollTop;
+      }
     };
 
     // Update comments whenever the editor content changes
@@ -165,7 +178,7 @@ export const CommentsSidebar = ({ editor, refreshKey = 0 }) => {
       requestAnimationFrame(updateComments);
     });
 
-    const editorElement = editor.view.dom.closest('.editor-content-container');
+    const editorElement = editor.view.dom.closest('.editor-main');
     
     // Add hover listeners for comment marks in the editor
     const handleMarkMouseEnter = (e) => {
@@ -238,7 +251,7 @@ export const CommentsSidebar = ({ editor, refreshKey = 0 }) => {
     if (!editor) return;
 
     // Store current scroll position
-    const editorContainer = editor.view.dom.closest('.editor-content-container');
+    const editorContainer = editor.view.dom.closest('.editor-main');
     const scrollTop = editorContainer?.scrollTop || 0;
 
     // Remove the comment mark
@@ -261,7 +274,7 @@ export const CommentsSidebar = ({ editor, refreshKey = 0 }) => {
 
   return (
     <div className="comments-sidebar" ref={sidebarRef}>
-      <div className="comments-container">
+      <div className="comments-container" style={{ minHeight: commentsHeight ? `${commentsHeight}px` : undefined }}>
         {comments.map((comment) => (
           <div
             key={comment.id}
