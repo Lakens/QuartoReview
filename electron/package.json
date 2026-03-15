@@ -19,8 +19,10 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "splash.html",
       "setup.html",
       "setup-preload.cjs",
+      "icon.png",
       "package.json"
     ],
     "icon": "icon.ico",

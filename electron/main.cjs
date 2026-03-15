@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron')
 const fs = require('fs');
 const http = require('http');
 const https = require('https');
+const net = require('net');
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
@@ -36,6 +37,28 @@ function getFrontendDistPath() {
 
 function getDesktopEnvPath() {
   return path.join(app.getPath('userData'), '.env');
+}
+
+function getPreferredBackendPort() {
+  const requestedPort = Number(process.env.PORT || DEFAULT_BACKEND_PORT);
+  return Number.isInteger(requestedPort) && requestedPort > 0 ? requestedPort : DEFAULT_BACKEND_PORT;
+}
+
+function findOpenPort(preferredPort = DEFAULT_BACKEND_PORT) {
+  const tryPort = (port) => new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', () => resolve(null));
+    server.listen(port, '127.0.0.1', () => {
+      const { port: openPort } = server.address();
+      server.close(() => resolve(openPort));
+    });
+  });
+
+  return tryPort(preferredPort).then((port) => {
+    if (port) return port;
+    return tryPort(0);
+  });
 }
 
 function getAppIconPath() {
@@ -412,7 +435,7 @@ async function spawnBackend() {
   const backendScriptPath = getBackendScriptPath();
   const backendDir = path.dirname(backendScriptPath);
   const desktopEnvPath = ensureDesktopEnvFile();
-  const backendPort = DEFAULT_BACKEND_PORT;
+  const backendPort = await findOpenPort(getPreferredBackendPort());
   const backendHealthToken = crypto.randomBytes(24).toString('hex');
 
   backendProcess = spawn(process.execPath, [backendScriptPath], {
@@ -562,6 +585,9 @@ function createSplashWindow() {
   splashWindow.setMenuBarVisibility(false);
   splashWindow.loadFile(path.join(__dirname, 'splash.html'), {
     query: { version: app.getVersion() },
+  });
+  splashWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error(`Failed to load splash screen (${errorCode}): ${errorDescription}`);
   });
   splashWindow.once('ready-to-show', () => {
     if (!IS_SMOKE_TEST && splashWindow) {
