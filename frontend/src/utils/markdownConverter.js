@@ -1,6 +1,6 @@
 import MarkdownIt from 'markdown-it';
 import markdownItAnchor from 'markdown-it-anchor';
-import markdownItEmoji from 'markdown-it-emoji';
+import { full as markdownItEmoji } from 'markdown-it-emoji';
 import markdownItFootnote from 'markdown-it-footnote';
 import markdownItIns from 'markdown-it-ins';
 import markdownItSub from 'markdown-it-sub';
